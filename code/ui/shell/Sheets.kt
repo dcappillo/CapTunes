@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Bluetooth
@@ -193,6 +194,8 @@ fun AccountSheet(
     onRefresh: () -> Unit,
     onSignOut: () -> Unit,
     local: Boolean = false,
+    cellularQuality: String = "",
+    onCellularQuality: () -> Unit = {},
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Surface1) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -223,6 +226,23 @@ fun AccountSheet(
                 onCheckedChange = onWifiOnly,
                 colors = SwitchDefaults.colors(checkedTrackColor = Coral),
             )
+        }
+        if (!local) Row(
+            Modifier.fillMaxWidth().clickable(onClick = onCellularQuality).padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.SignalCellularAlt, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(18.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Quality on mobile data", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Lower quality buffers less on the road. Wi-Fi and downloads stay original. Tap to change.",
+                    color = TextDim,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(cellularQuality, color = Coral, style = MaterialTheme.typography.titleMedium)
         }
         if (!local && storageMb > 0) SheetItem(Icons.Default.Delete, "Remove all downloads") { onRemoveDownloads(); onDismiss() }
         SheetItem(Icons.Default.Person, if (local) "Switch library" else "Sign out", tint = Coral) { onSignOut(); onDismiss() }

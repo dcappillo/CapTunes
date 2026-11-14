@@ -11,7 +11,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -41,8 +43,18 @@ class PlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
+        // Keep up to 5 minutes of music loaded ahead (the default is under a minute),
+        // so a dead zone on the road doesn't interrupt the song.
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(120_000, 300_000, 2_500, 5_000)
+            .setTargetBufferBytes(32 * 1024 * 1024)
+            .setPrioritizeTimeOverSizeThresholds(false)
+            .build()
+        // Lets you skip around inside songs the server converts to MP3 on the fly.
+        val extractors = DefaultExtractorsFactory().setConstantBitrateSeekingEnabled(true)
         val player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(Downloads.playerDataSource(this)))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(Downloads.playerDataSource(this), extractors))
+            .setLoadControl(loadControl)
             .setAudioAttributes(attributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)

@@ -9,6 +9,7 @@ import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
@@ -64,7 +65,13 @@ object Downloads {
     fun playerDataSource(context: Context): DataSource.Factory =
         CacheDataSource.Factory()
             .setCache(cache(context))
-            .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context, DefaultHttpDataSource.Factory()))
+            .setUpstreamDataSourceFactory(
+                // On mobile data, songs are converted to a smaller MP3 by the server (see StreamQuality).
+                ResolvingDataSource.Factory(
+                    DefaultDataSource.Factory(context, DefaultHttpDataSource.Factory()),
+                    StreamQuality.resolver(context),
+                ),
+            )
             .setCacheWriteDataSinkFactory(null)
 
     @Synchronized

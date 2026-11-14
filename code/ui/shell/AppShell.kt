@@ -1,5 +1,6 @@
 package app.captunes.ui.shell
 
+import app.captunes.playback.StreamQuality
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -55,6 +56,7 @@ fun AppShell(vm: MainViewModel) {
     val showDevices by vm.showDevices.collectAsStateWithLifecycle()
     val downloads by vm.downloads.collectAsStateWithLifecycle()
     val wifiOnly by vm.wifiOnly.collectAsStateWithLifecycle()
+    val cellularKbps by vm.cellularKbps.collectAsStateWithLifecycle()
 
     var expanded by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -167,6 +169,8 @@ fun AppShell(vm: MainViewModel) {
             user = session?.user.orEmpty(),
             server = session?.server.orEmpty(),
             wifiOnly = wifiOnly,
+            cellularQuality = StreamQuality.label(cellularKbps),
+            onCellularQuality = vm::cycleCellularQuality,
             storageMb = remember { vm.storageUsedMb() },
             onWifiOnly = vm::setWifiOnly,
             onRemoveDownloads = vm::removeAllDownloads,

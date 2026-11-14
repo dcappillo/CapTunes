@@ -18,6 +18,7 @@ import app.captunes.playback.DownloadInfo
 import app.captunes.playback.Downloads
 import app.captunes.playback.PlayContext
 import app.captunes.playback.PlayerState
+import app.captunes.playback.StreamQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -86,6 +87,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _wifiOnly = MutableStateFlow(Downloads.wifiOnly(app))
     val wifiOnly: StateFlow<Boolean> = _wifiOnly.asStateFlow()
+
+    private val _cellularKbps = MutableStateFlow(StreamQuality.cellularKbps(app))
+    val cellularKbps: StateFlow<Int> = _cellularKbps.asStateFlow()
+
+    /** Steps to the next mobile-data quality; applies from the next song. */
+    fun cycleCellularQuality() {
+        val next = StreamQuality.next(_cellularKbps.value)
+        StreamQuality.setCellularKbps(getApplication(), next)
+        _cellularKbps.value = next
+    }
 
     fun download(tracks: List<Track>) {
         Downloads.download(getApplication(), tracks)

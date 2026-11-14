@@ -15,8 +15,8 @@ android {
         applicationId = "app.captunes"
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.10"
+        versionCode = 15
+        versionName = "1.11"
     }
 
     buildTypes {

@@ -12,6 +12,7 @@ Built with Kotlin, Jetpack Compose and Media3.
 - **Synced lyrics** from your server or [LRCLIB](https://lrclib.net), shown line by line on the album art or full screen.
 - **Wrapped:** a yearly recap built from your on-device play history.
 - **Player:** background playback with lock-screen and notification controls, a queue with drag-to-reorder, resume after restart, and offline downloads (server mode).
+- **Mobile-data quality:** on a metered connection the server converts songs to a smaller MP3 (320, 192 or 128 kbps, your choice) so lossless files don't buffer on the road; Wi-Fi and downloads stay original.
 - **Format fallback:** in server mode, files Android can't decode (WMA, APE…) are converted to MP3 by the server on the fly.
 
 ## Build it
