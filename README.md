@@ -18,7 +18,7 @@ Built with Kotlin, Jetpack Compose and Media3.
 
 ## Install it
 
-A ready-to-install build is in the [`apk`](apk) folder. Download the `.apk` file to your Android phone (8.0 or later), open it, and allow installs from your browser or file manager if Android asks. It's a debug build signed with a development key.
+Download the latest `.apk` from the [Releases page](https://github.com/dcappillo/CapTunes/releases/latest) onto your Android phone (8.0 or later), open it, and allow installs from your browser or file manager if Android asks. It's a debug build signed with a development key.
 
 ## Build it
 
