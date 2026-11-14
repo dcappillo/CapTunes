@@ -91,6 +91,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _cellularKbps = MutableStateFlow(StreamQuality.cellularKbps(app))
     val cellularKbps: StateFlow<Int> = _cellularKbps.asStateFlow()
 
+    private val _wifiKbps = MutableStateFlow(StreamQuality.wifiKbps(app))
+    val wifiKbps: StateFlow<Int> = _wifiKbps.asStateFlow()
+
+    /** Steps to the next Wi-Fi quality; applies from the next song. */
+    fun cycleWifiQuality() {
+        val next = StreamQuality.next(_wifiKbps.value)
+        StreamQuality.setWifiKbps(getApplication(), next)
+        _wifiKbps.value = next
+    }
+
     /** Steps to the next mobile-data quality; applies from the next song. */
     fun cycleCellularQuality() {
         val next = StreamQuality.next(_cellularKbps.value)

@@ -196,6 +196,8 @@ fun AccountSheet(
     local: Boolean = false,
     cellularQuality: String = "",
     onCellularQuality: () -> Unit = {},
+    wifiQuality: String = "",
+    onWifiQuality: () -> Unit = {},
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Surface1) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -227,25 +229,38 @@ fun AccountSheet(
                 colors = SwitchDefaults.colors(checkedTrackColor = Coral),
             )
         }
-        if (!local) Row(
-            Modifier.fillMaxWidth().clickable(onClick = onCellularQuality).padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.SignalCellularAlt, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(18.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Quality on mobile data", style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    "Lower quality buffers less on the road. Wi-Fi and downloads stay original. Tap to change.",
-                    color = TextDim,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Text(cellularQuality, color = Coral, style = MaterialTheme.typography.titleMedium)
+        if (!local) {
+            QualityRow(
+                Icons.Default.SignalCellularAlt, "Quality on mobile data",
+                "Lower quality buffers less on the road. Tap to change.",
+                cellularQuality, onCellularQuality,
+            )
+            QualityRow(
+                Icons.Default.Wifi, "Quality on Wi-Fi",
+                "Lower this if large files buffer at home. Tap to change.",
+                wifiQuality, onWifiQuality,
+            )
         }
         if (!local && storageMb > 0) SheetItem(Icons.Default.Delete, "Remove all downloads") { onRemoveDownloads(); onDismiss() }
         SheetItem(Icons.Default.Person, if (local) "Switch library" else "Sign out", tint = Coral) { onSignOut(); onDismiss() }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** A setting that steps through Original, 320, 192 and 128 kbps each time it's tapped. */
+@Composable
+private fun QualityRow(icon: ImageVector, title: String, hint: String, value: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White)
+        Spacer(Modifier.width(18.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(hint, color = TextDim, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(value, color = Coral, style = MaterialTheme.typography.titleMedium)
     }
 }

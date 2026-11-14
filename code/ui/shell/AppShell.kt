@@ -57,6 +57,7 @@ fun AppShell(vm: MainViewModel) {
     val downloads by vm.downloads.collectAsStateWithLifecycle()
     val wifiOnly by vm.wifiOnly.collectAsStateWithLifecycle()
     val cellularKbps by vm.cellularKbps.collectAsStateWithLifecycle()
+    val wifiKbps by vm.wifiKbps.collectAsStateWithLifecycle()
 
     var expanded by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -171,6 +172,8 @@ fun AppShell(vm: MainViewModel) {
             wifiOnly = wifiOnly,
             cellularQuality = StreamQuality.label(cellularKbps),
             onCellularQuality = vm::cycleCellularQuality,
+            wifiQuality = StreamQuality.label(wifiKbps),
+            onWifiQuality = vm::cycleWifiQuality,
             storageMb = remember { vm.storageUsedMb() },
             onWifiOnly = vm::setWifiOnly,
             onRemoveDownloads = vm::removeAllDownloads,

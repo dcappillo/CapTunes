@@ -9,10 +9,11 @@ import androidx.media3.datasource.ResolvingDataSource
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Streaming quality on mobile data. Lossless files (FLAC) are several times the size
- * of a good MP3, which is what makes them buffer in the car. On a metered connection
- * the server converts each song to MP3 at the chosen bitrate as it streams; on Wi-Fi,
- * and for downloads, you always get the original file.
+ * Streaming quality, chosen separately for mobile data and Wi-Fi. Lossless files (FLAC)
+ * are several times the size of a good MP3, which is what makes them buffer. When a
+ * bitrate is picked, the server converts each song to MP3 at that bitrate as it streams.
+ * Mobile data defaults to 192 kbps and Wi-Fi to the original file; downloads are
+ * always the original file.
  */
 object StreamQuality {
     /** 0 means "original quality, never convert". */
@@ -21,12 +22,20 @@ object StreamQuality {
     private const val DEFAULT = 192
     private const val PREFS = "captunes_settings"
     private const val KEY = "cellularKbps"
+    private const val KEY_WIFI = "wifiKbps"
 
     fun cellularKbps(context: Context): Int =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY, DEFAULT)
 
     fun setCellularKbps(context: Context, kbps: Int) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY, kbps).apply()
+    }
+
+    fun wifiKbps(context: Context): Int =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_WIFI, ORIGINAL)
+
+    fun setWifiKbps(context: Context, kbps: Int) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_WIFI, kbps).apply()
     }
 
     fun label(kbps: Int): String = if (kbps == ORIGINAL) "Original" else "$kbps kbps"
@@ -60,7 +69,7 @@ object StreamQuality {
             // Decide once per song, at its start. Later reads (seeking, reconnecting) must keep
             // the same choice, or the player would get bytes from two different files.
             val kbps = if (dataSpec.position == 0L) {
-                val now = if (onMobileData(app)) cellularKbps(app) else ORIGINAL
+                val now = if (onMobileData(app)) cellularKbps(app) else wifiKbps(app)
                 if (chosen.size > 500) chosen.clear()
                 chosen[id] = now
                 now
