@@ -16,6 +16,10 @@ Built with Kotlin, Jetpack Compose and Media3.
 - **Streaming quality:** pick the quality separately for mobile data and Wi-Fi (Original, 320, 192 or 128 kbps). Below Original, the server converts songs to a smaller MP3 so large lossless files don't buffer. Downloads stay original.
 - **Format fallback:** in server mode, files Android can't decode (WMA, APE…) are converted to MP3 by the server on the fly.
 
+## Install it
+
+A ready-to-install build is in the [`apk`](apk) folder. Download the `.apk` file to your Android phone (8.0 or later), open it, and allow installs from your browser or file manager if Android asks. It's a debug build signed with a development key.
+
 ## Build it
 
 1. Install **Android Studio** (current stable) with JDK 21.

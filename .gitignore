@@ -13,6 +13,8 @@ local.properties
 
 # Build outputs and signing keys - never commit these
 *.apk
+# ...except the ready-to-install build kept in apk/
+!apk/*.apk
 *.aab
 *.jks
 *.keystore
