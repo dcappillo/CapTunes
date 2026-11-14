@@ -1,5 +1,6 @@
 package app.captunes.ui.library
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -142,6 +143,19 @@ fun LibraryScreen(vm: MainViewModel, onOpen: (Card) -> Unit, onAccount: () -> Un
                 items(all, key = { "${it.kind}:${it.id}" }) { LibraryGridItem(it) { onOpen(it) } }
             }
             else -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+                if (filter == Filter.Playlists) item(key = "new-playlist") {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { creating = true }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(56.dp).background(Surface2), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text("New playlist", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
                 items(all, key = { "${it.kind}:${it.id}" }) { LibraryListItem(it) { onOpen(it) } }
             }
         }

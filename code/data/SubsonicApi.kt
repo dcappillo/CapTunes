@@ -109,4 +109,17 @@ class SubsonicApi(private val session: Session) {
     suspend fun addToPlaylist(playlistId: String, songId: String) {
         call("updatePlaylist", listOf("playlistId" to playlistId, "songIdToAdd" to songId))
     }
+
+    suspend fun renamePlaylist(playlistId: String, name: String) {
+        call("updatePlaylist", listOf("playlistId" to playlistId, "name" to name))
+    }
+
+    /** [index] is the song's position in the playlist, counting from 0. */
+    suspend fun removeFromPlaylist(playlistId: String, index: Int) {
+        call("updatePlaylist", listOf("playlistId" to playlistId, "songIndexToRemove" to "$index"))
+    }
+
+    suspend fun deletePlaylist(playlistId: String) {
+        call("deletePlaylist", listOf("id" to playlistId))
+    }
 }

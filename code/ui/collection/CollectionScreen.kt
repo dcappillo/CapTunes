@@ -1,5 +1,8 @@
 package app.captunes.ui.collection
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import app.captunes.ui.library.NewPlaylistDialog
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -56,7 +59,10 @@ fun CollectionScreen(
     onArtist: (String) -> Unit,
 ) {
     var attempt by remember { mutableIntStateOf(0) }
-    val load by produceState<Load<CollectionDetail>>(Load.Loading, kind, id, attempt) {
+    // Playlists reload whenever one is edited (songs added or removed, renamed).
+    val playlistVersion by vm.playlistVersion.collectAsStateWithLifecycle()
+    val edits = if (kind == Kind.Playlist) playlistVersion else 0
+    val load by produceState<Load<CollectionDetail>>(Load.Loading, kind, id, attempt, edits) {
         val repo = vm.repo
         value = if (repo == null) Load.Failed("Not signed in")
         else runCatching { Load.Ready(repo.collection(kind, id)) }
@@ -120,6 +126,10 @@ private fun CollectionContent(
     val playContext = PlayContext(contextKey, detail.typeLabel, detail.title)
     val isThis = player.context?.key == contextKey && player.current != null
     var shuffle by rememberSaveable(contextKey) { mutableStateOf(false) }
+    val editable = detail.kind == Kind.Playlist
+    var addingSongs by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(Night)) {
         Box(
@@ -153,6 +163,9 @@ private fun CollectionContent(
                                 else vm.download(detail.tracks)
                             }
                         },
+                        onAddSongs = if (editable) ({ addingSongs = true }) else null,
+                        onRename = if (editable) ({ renaming = true }) else null,
+                        onDelete = if (editable) ({ confirmDelete = true }) else null,
                         onShuffle = {
                             shuffle = !shuffle
                             if (isThis) vm.toggleShuffle()
@@ -167,6 +180,10 @@ private fun CollectionContent(
                     item(key = "empty") {
                         if (detail.kind == Kind.Liked) {
                             CenteredMessage("Songs you like will appear here", "Tap the heart on any song to save it.")
+                        } else if (editable) {
+                            CenteredMessage("This playlist is empty", "Add the first songs to get it started.") {
+                                Button(onClick = { addingSongs = true }) { Text("Add songs") }
+                            }
                         } else {
                             CenteredMessage("Nothing here yet", "This list doesn't have any songs.")
                         }
@@ -180,12 +197,47 @@ private fun CollectionContent(
                         showArt = detail.kind != Kind.Album,
                         downloaded = downloads[track.id]?.done == true,
                         onClick = { vm.play(detail.tracks, i, playContext, shuffle) },
-                        onMore = { vm.openActions(track) },
+                        onMore = {
+                            if (editable) vm.openActions(track, detail.id, i) else vm.openActions(track)
+                        },
                     )
                 }
                 item(key = "bottom") { Spacer(Modifier.height(16.dp)) }
             }
         }
+    }
+
+    if (addingSongs) {
+        AddSongsSheet(
+            vm = vm,
+            inPlaylist = remember(detail.tracks) { detail.tracks.mapTo(HashSet()) { it.id } },
+            onAdd = { vm.addToPlaylist(detail.id, detail.title, it) },
+            onDismiss = { addingSongs = false },
+        )
+    }
+    if (renaming) {
+        NewPlaylistDialog(
+            onDismiss = { renaming = false },
+            onCreate = { name ->
+                renaming = false
+                vm.renamePlaylist(detail.id, name)
+            },
+            currentName = detail.title,
+        )
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete \"${detail.title}\"?") },
+            text = { Text("The playlist is removed for good. The songs stay in your library.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDelete = false
+                    vm.deletePlaylist(detail.id, detail.title, onBack)
+                }) { Text("Delete", color = Coral) }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -201,6 +253,9 @@ private fun ActionRow(
     onSaveAsPlaylist: () -> Unit,
     downloadState: DownloadState,
     onDownload: (() -> Unit)?,
+    onAddSongs: (() -> Unit)?,
+    onRename: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
     onShuffle: () -> Unit,
     onPlay: () -> Unit,
 ) {
@@ -208,7 +263,10 @@ private fun ActionRow(
         modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CollectionActions(detail, liked, onLike, onQueue, onSaveAsPlaylist, downloadState, onDownload)
+        CollectionActions(
+            detail, liked, onLike, onQueue, onSaveAsPlaylist, downloadState, onDownload,
+            onAddSongs, onRename, onDelete,
+        )
         Spacer(Modifier.weight(1f))
         ShuffleButton(shuffle, onShuffle)
         Spacer(Modifier.padding(4.dp))

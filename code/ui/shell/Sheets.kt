@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowCircleDown
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.SignalCellularAlt
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Album
@@ -78,6 +79,8 @@ fun TrackActionsSheet(
     downloaded: Boolean,
     /** Null hides "Download" (songs on the phone are already offline). */
     onToggleDownload: (() -> Unit)?,
+    /** Set when the menu was opened from inside a playlist. */
+    onRemoveFromPlaylist: (() -> Unit)? = null,
 ) {
     var picking by remember { mutableStateOf(false) }
     var naming by remember { mutableStateOf(false) }
@@ -101,6 +104,9 @@ fun TrackActionsSheet(
             SheetItem(Icons.AutoMirrored.Filled.PlaylistPlay, "Play next", onClick = then(onPlayNext))
             SheetItem(Icons.AutoMirrored.Filled.QueueMusic, "Add to queue", onClick = then(onQueue))
             SheetItem(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist") { picking = true }
+            onRemoveFromPlaylist?.let {
+                SheetItem(Icons.Default.RemoveCircleOutline, "Remove from this playlist", onClick = then(it))
+            }
             onToggleDownload?.let { toggle ->
                 SheetItem(
                     Icons.Default.ArrowCircleDown,

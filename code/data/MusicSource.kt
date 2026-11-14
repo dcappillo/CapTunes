@@ -24,6 +24,11 @@ interface MusicSource {
     suspend fun setStarred(id: String, isAlbum: Boolean, starred: Boolean)
     suspend fun createPlaylist(name: String, songIds: List<String>)
     suspend fun addToPlaylist(playlistId: String, songId: String)
+    suspend fun renamePlaylist(playlistId: String, name: String)
+
+    /** Removes the song at [index] (its position in the playlist, counting from 0). */
+    suspend fun removeFromPlaylist(playlistId: String, index: Int)
+    suspend fun deletePlaylist(playlistId: String)
 
     /** Tells the source a song started (submission=false) or was listened to. */
     suspend fun scrobble(songId: String, submission: Boolean, timeMs: Long)

@@ -204,6 +204,15 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
 
     suspend fun addToPlaylist(playlistId: String, songId: String) = source.addToPlaylist(playlistId, songId)
 
+    suspend fun renamePlaylist(playlistId: String, name: String) = source.renamePlaylist(playlistId, name)
+
+    suspend fun removeFromPlaylist(playlistId: String, index: Int) = source.removeFromPlaylist(playlistId, index)
+
+    suspend fun deletePlaylist(playlistId: String) = source.deletePlaylist(playlistId)
+
+    /** Songs matching [query], for picking what to add to a playlist. */
+    suspend fun searchSongs(query: String): List<Track> = source.search(query).songs
+
     suspend fun scrobble(songId: String, submission: Boolean, timeMs: Long) =
         source.scrobble(songId, submission, timeMs)
 }

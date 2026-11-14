@@ -50,6 +50,12 @@ class SubsonicSource(private val api: SubsonicApi, private val session: Session)
 
     override suspend fun addToPlaylist(playlistId: String, songId: String) = api.addToPlaylist(playlistId, songId)
 
+    override suspend fun renamePlaylist(playlistId: String, name: String) = api.renamePlaylist(playlistId, name)
+
+    override suspend fun removeFromPlaylist(playlistId: String, index: Int) = api.removeFromPlaylist(playlistId, index)
+
+    override suspend fun deletePlaylist(playlistId: String) = api.deletePlaylist(playlistId)
+
     override suspend fun scrobble(songId: String, submission: Boolean, timeMs: Long) =
         api.scrobble(songId, submission, timeMs)
 

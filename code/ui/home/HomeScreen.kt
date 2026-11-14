@@ -139,7 +139,7 @@ private fun HomeContent(
     Column(Modifier.fillMaxWidth()) {
         if (filter == "All") QuickPicks(data.quickPicks, onOpen)
         if (filter == "All") WrappedBanner(onWrapped)
-        if (showPlaylists) Shelf("Made For ${name.ifBlank { "You" }}", data.mixes, onOpen)
+        if (showPlaylists) Shelf("Made For You", data.mixes, onOpen)
         if (showPlaylists) Shelf("Your mixes", data.forYou, onOpen)
         if (showPlaylists) Shelf("By decade", data.decades, onOpen)
         if (showAlbums) Shelf("Recently played", data.recent, onOpen)

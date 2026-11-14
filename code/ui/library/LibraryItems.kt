@@ -77,11 +77,16 @@ private fun Art(card: Card, modifier: Modifier) {
 }
 
 @Composable
-fun NewPlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
-    var name by remember { mutableStateOf("") }
+fun NewPlaylistDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+    /** Set when renaming: starts with the current name and says "Save". */
+    currentName: String? = null,
+) {
+    var name by remember { mutableStateOf(currentName.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Give your playlist a name") },
+        title = { Text(if (currentName == null) "Give your playlist a name" else "Rename playlist") },
         text = {
             OutlinedTextField(
                 value = name,
@@ -91,8 +96,8 @@ fun NewPlaylistDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
             )
         },
         confirmButton = {
-            TextButton(onClick = { onCreate(name.ifBlank { "My playlist" }) }) {
-                Text("Create", color = Coral)
+            TextButton(onClick = { onCreate(name.ifBlank { currentName ?: "My playlist" }) }) {
+                Text(if (currentName == null) "Create" else "Save", color = Coral)
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

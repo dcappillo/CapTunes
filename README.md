@@ -9,6 +9,7 @@ Built with Kotlin, Jetpack Compose and Media3.
 - **Two ways to listen.** Tap *Use music on this phone* to play the songs already on your device (no account needed), or sign in to your own Navidrome/Subsonic server.
 - **Home** with quick picks, recently played, new additions, Rediscover, and playlists by decade.
 - **Smart mixes** that learn from what you finish, skip and dislike. Daily Mixes keep adding songs as you near the end, and an optional world-popularity signal from Deezer's public charts helps balance a library that leans heavily toward one era.
+- **Playlists:** create, rename and delete playlists, and add or remove songs, all from the app.
 - **Synced lyrics** from your server or [LRCLIB](https://lrclib.net), shown line by line on the album art or full screen.
 - **Wrapped:** a yearly recap built from your on-device play history.
 - **Player:** background playback with lock-screen and notification controls, a queue with drag-to-reorder, resume after restart, and offline downloads (server mode).

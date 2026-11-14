@@ -1,5 +1,8 @@
 package app.captunes.ui.collection
 
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
@@ -63,6 +66,10 @@ fun CollectionActions(
     onSaveAsPlaylist: () -> Unit,
     downloadState: DownloadState,
     onDownload: (() -> Unit)?,
+    /** Only set for playlists you can edit. */
+    onAddSongs: (() -> Unit)? = null,
+    onRename: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -82,6 +89,27 @@ fun CollectionActions(
                 Icon(Icons.Default.MoreVert, contentDescription = "More", tint = TextDim)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                onAddSongs?.let { add ->
+                    DropdownMenuItem(
+                        text = { Text("Add songs") },
+                        leadingIcon = { Icon(Icons.Default.Add, null) },
+                        onClick = { menu = false; add() },
+                    )
+                }
+                onRename?.let { rename ->
+                    DropdownMenuItem(
+                        text = { Text("Rename playlist") },
+                        leadingIcon = { Icon(Icons.Default.Edit, null) },
+                        onClick = { menu = false; rename() },
+                    )
+                }
+                onDelete?.let { delete ->
+                    DropdownMenuItem(
+                        text = { Text("Delete playlist", color = Coral) },
+                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = Coral) },
+                        onClick = { menu = false; delete() },
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text("Save as new playlist") },
                     leadingIcon = { Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null) },

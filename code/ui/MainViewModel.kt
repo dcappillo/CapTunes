@@ -35,6 +35,9 @@ import kotlinx.coroutines.launch
 data class LoginState(val loading: Boolean = false, val error: String? = null)
 
 @OptIn(FlowPreview::class)
+/** A song's position inside a playlist. */
+data class PlaylistSpot(val playlistId: String, val index: Int)
+
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
@@ -74,6 +77,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _sheetTrack = MutableStateFlow<Track?>(null)
     val sheetTrack: StateFlow<Track?> = _sheetTrack.asStateFlow()
+
+    /** Where the song in the menu sits, when the menu was opened from inside a playlist. */
+    private val _sheetSpot = MutableStateFlow<PlaylistSpot?>(null)
+    val sheetSpot: StateFlow<PlaylistSpot?> = _sheetSpot.asStateFlow()
+
+    /** Goes up by one whenever a playlist is changed, so open playlist screens reload. */
+    private val _playlistVersion = MutableStateFlow(0)
+    val playlistVersion: StateFlow<Int> = _playlistVersion.asStateFlow()
 
     private val _showDevices = MutableStateFlow(false)
     val showDevices: StateFlow<Boolean> = _showDevices.asStateFlow()
@@ -298,25 +309,88 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { r.createPlaylist(name.trim(), songs.map { it.id }) }
                 .onSuccess {
                     _messages.tryEmit("Created \"${name.trim()}\"")
-                    _library.value = runCatching { r.library() }.getOrDefault(_library.value)
+                    playlistsChanged(r)
                 }
                 .onFailure { _messages.tryEmit("Couldn't create the playlist") }
         }
     }
 
-    fun addToPlaylist(playlist: Card, track: Track) {
+    fun addToPlaylist(playlist: Card, track: Track) = addToPlaylist(playlist.id, playlist.title, track)
+
+    fun addToPlaylist(playlistId: String, playlistTitle: String, track: Track) {
         val r = repo ?: return
         viewModelScope.launch {
-            runCatching { r.addToPlaylist(playlist.id, track.id) }
-                .onSuccess { _messages.tryEmit("Added to ${playlist.title}") }
-                .onFailure { _messages.tryEmit("Couldn't add to ${playlist.title}") }
+            runCatching { r.addToPlaylist(playlistId, track.id) }
+                .onSuccess {
+                    _messages.tryEmit("Added to $playlistTitle")
+                    playlistsChanged(r)
+                }
+                .onFailure { _messages.tryEmit("Couldn't add to $playlistTitle") }
         }
+    }
+
+    fun renamePlaylist(playlistId: String, name: String) {
+        val r = repo ?: return
+        val newName = name.trim().ifBlank { return }
+        viewModelScope.launch {
+            runCatching { r.renamePlaylist(playlistId, newName) }
+                .onSuccess {
+                    _messages.tryEmit("Renamed to \"$newName\"")
+                    playlistsChanged(r)
+                }
+                .onFailure { _messages.tryEmit("Couldn't rename the playlist") }
+        }
+    }
+
+    /** [index] is the song's position in the playlist, so duplicates are removed one at a time. */
+    fun removeFromPlaylist(playlistId: String, index: Int, track: Track) {
+        val r = repo ?: return
+        viewModelScope.launch {
+            runCatching { r.removeFromPlaylist(playlistId, index) }
+                .onSuccess {
+                    _messages.tryEmit("Removed \"${track.title}\"")
+                    playlistsChanged(r)
+                }
+                .onFailure { _messages.tryEmit("Couldn't remove the song") }
+        }
+    }
+
+    fun deletePlaylist(playlistId: String, title: String, onDeleted: () -> Unit) {
+        val r = repo ?: return
+        viewModelScope.launch {
+            runCatching { r.deletePlaylist(playlistId) }
+                .onSuccess {
+                    _messages.tryEmit("Deleted \"$title\"")
+                    onDeleted()
+                    playlistsChanged(r)
+                }
+                .onFailure { _messages.tryEmit("Couldn't delete the playlist") }
+        }
+    }
+
+    /** Reloads the playlist list and tells any open playlist screen to reload itself. */
+    private suspend fun playlistsChanged(r: Repository) {
+        _playlistVersion.value++
+        _library.value = runCatching { r.library() }.getOrDefault(_library.value)
     }
 
     // ---- sheets ----
 
-    fun openActions(track: Track) { _sheetTrack.value = track }
-    fun closeActions() { _sheetTrack.value = null }
+    fun openActions(track: Track) {
+        _sheetSpot.value = null
+        _sheetTrack.value = track
+    }
+
+    /** Opens the song menu from inside a playlist, so it can offer "Remove from this playlist". */
+    fun openActions(track: Track, playlistId: String, index: Int) {
+        _sheetSpot.value = PlaylistSpot(playlistId, index)
+        _sheetTrack.value = track
+    }
+
+    fun closeActions() {
+        _sheetTrack.value = null
+        _sheetSpot.value = null
+    }
     fun setDevicesVisible(visible: Boolean) { _showDevices.value = visible }
     fun toast(text: String) { _messages.tryEmit(text) }
 }

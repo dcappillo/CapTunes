@@ -53,6 +53,7 @@ fun AppShell(vm: MainViewModel) {
     val library by vm.library.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
     val sheetTrack by vm.sheetTrack.collectAsStateWithLifecycle()
+    val sheetSpot by vm.sheetSpot.collectAsStateWithLifecycle()
     val showDevices by vm.showDevices.collectAsStateWithLifecycle()
     val downloads by vm.downloads.collectAsStateWithLifecycle()
     val wifiOnly by vm.wifiOnly.collectAsStateWithLifecycle()
@@ -162,6 +163,7 @@ fun AppShell(vm: MainViewModel) {
             onToggleDownload = if (session?.isLocal == true) null else {
                 { if (downloads[t.id]?.done == true) vm.removeDownloads(listOf(t)) else vm.download(listOf(t)) }
             },
+            onRemoveFromPlaylist = sheetSpot?.let { spot -> { vm.removeFromPlaylist(spot.playlistId, spot.index, t) } },
         )
     }
     if (showDevices) DevicesSheet(onDismiss = { vm.setDevicesVisible(false) })

@@ -152,6 +152,15 @@ class LocalSource(context: Context, private val playLog: PlayLog) : MusicSource 
     override suspend fun addToPlaylist(playlistId: String, songId: String) =
         withContext(Dispatchers.IO) { store.addToPlaylist(playlistId, songId) }
 
+    override suspend fun renamePlaylist(playlistId: String, name: String) =
+        withContext(Dispatchers.IO) { store.renamePlaylist(playlistId, name) }
+
+    override suspend fun removeFromPlaylist(playlistId: String, index: Int) =
+        withContext(Dispatchers.IO) { store.removeFromPlaylist(playlistId, index) }
+
+    override suspend fun deletePlaylist(playlistId: String) =
+        withContext(Dispatchers.IO) { store.deletePlaylist(playlistId) }
+
     /** Nothing to report to; your play history is already kept on the phone. */
     override suspend fun scrobble(songId: String, submission: Boolean, timeMs: Long) = Unit
 
@@ -378,6 +387,34 @@ private class LocalStore(context: Context) : SQLiteOpenHelper(context, "local_li
             .use { if (it.moveToFirst()) it.getInt(0) else 0 }
         addRow(db, id, next, songId)
         db.update("playlists", ContentValues().apply { put("changed", System.currentTimeMillis()) }, "id = ?", arrayOf("$id"))
+    }
+
+    fun renamePlaylist(playlistId: String, name: String) {
+        val id = playlistId.removePrefix(PLAYLIST).toLongOrNull() ?: return
+        writableDatabase.update(
+            "playlists",
+            ContentValues().apply { put("name", name); put("changed", System.currentTimeMillis()) },
+            "id = ?", arrayOf("$id"),
+        )
+    }
+
+    fun removeFromPlaylist(playlistId: String, index: Int) {
+        val id = playlistId.removePrefix(PLAYLIST).toLongOrNull() ?: return
+        val db = writableDatabase
+        // Find the row sitting at that position, then delete just that one.
+        val row = db.rawQuery(
+            "SELECT rowid FROM playlist_songs WHERE playlist_id = ? ORDER BY pos LIMIT 1 OFFSET ?",
+            arrayOf("$id", "$index"),
+        ).use { if (it.moveToFirst()) it.getLong(0) else null } ?: return
+        db.delete("playlist_songs", "rowid = ?", arrayOf("$row"))
+        db.update("playlists", ContentValues().apply { put("changed", System.currentTimeMillis()) }, "id = ?", arrayOf("$id"))
+    }
+
+    fun deletePlaylist(playlistId: String) {
+        val id = playlistId.removePrefix(PLAYLIST).toLongOrNull() ?: return
+        val db = writableDatabase
+        db.delete("playlist_songs", "playlist_id = ?", arrayOf("$id"))
+        db.delete("playlists", "id = ?", arrayOf("$id"))
     }
 
     private fun addRow(db: SQLiteDatabase, playlistId: Long, pos: Int, songId: String) {
