@@ -1,0 +1,23 @@
+# Android Studio / Gradle
+.gradle/
+.kotlin/
+.idea/
+*.iml
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Machine-specific (contains your SDK path / Windows username)
+local.properties
+
+# Build outputs and signing keys - never commit these
+*.apk
+*.aab
+*.jks
+*.keystore
+keystore.properties
+
+# OS clutter
+.DS_Store
+Thumbs.db

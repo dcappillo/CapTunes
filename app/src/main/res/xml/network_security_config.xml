@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain http is allowed at the OS level so you can reach Navidrome by its
+  Tailscale IP (100.x.x.x) or LAN IP. The app itself refuses http for any
+  address that is not Tailscale, your home network, or localhost
+  (see data/Session.kt: isSafeServer). Tailscale encrypts the traffic.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
