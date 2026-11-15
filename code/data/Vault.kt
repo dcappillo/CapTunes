@@ -1,5 +1,6 @@
 package app.captunes.data
 
+import app.captunes.util.guarded
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -34,14 +35,14 @@ internal object Vault {
     }
 
     /** Returns null if the phone's keystore isn't usable; the caller then doesn't save anything. */
-    fun encrypt(plain: String): String? = runCatching {
+    fun encrypt(plain: String): String? = guarded("Vault") {
         val cipher = Cipher.getInstance(TRANSFORM).apply { init(Cipher.ENCRYPT_MODE, key()) }
         val sealed = cipher.iv + cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
         Base64.encodeToString(sealed, Base64.NO_WRAP)
     }.getOrNull()
 
     /** Returns null if the text can't be opened (wrong phone, restored backup, damaged data). */
-    fun decrypt(sealed: String): String? = runCatching {
+    fun decrypt(sealed: String): String? = guarded("Vault") {
         val bytes = Base64.decode(sealed, Base64.NO_WRAP)
         val cipher = Cipher.getInstance(TRANSFORM).apply {
             init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, bytes, 0, IV_BYTES))
@@ -50,6 +51,6 @@ internal object Vault {
     }.getOrNull()
 
     fun forget() {
-        runCatching { KeyStore.getInstance(STORE).apply { load(null) }.deleteEntry(ALIAS) }
+        guarded("Vault") { KeyStore.getInstance(STORE).apply { load(null) }.deleteEntry(ALIAS) }
     }
 }

@@ -1,5 +1,6 @@
 package app.captunes.playback
 
+import app.captunes.util.guarded
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -80,10 +81,10 @@ class Scrobbler(context: Context, private val player: Player) : Player.Listener 
         val listened = listenedMs
         val start = startedAt
         if (sync) {
-            runCatching { log.record(track, start, listened, outcome) }
+            guarded("Scrobbler") { log.record(track, start, listened, outcome) }
         } else {
             scope.launch(Dispatchers.IO) {
-                runCatching { log.record(track, start, listened, outcome) }
+                guarded("Scrobbler") { log.record(track, start, listened, outcome) }
             }
         }
     }
@@ -107,7 +108,7 @@ class Scrobbler(context: Context, private val player: Player) : Player.Listener 
     private fun send(id: String, submission: Boolean, time: Long) {
         val repo = Graph.repo ?: return
         scope.launch(Dispatchers.IO) {
-            runCatching { repo.scrobble(id, submission, time) }
+            guarded("Scrobbler") { repo.scrobble(id, submission, time) }
         }
     }
 

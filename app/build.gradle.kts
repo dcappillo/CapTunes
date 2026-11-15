@@ -15,8 +15,8 @@ android {
         applicationId = "app.captunes"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.15"
+        versionCode = 20
+        versionName = "1.16"
     }
 
     buildTypes {
@@ -43,6 +43,16 @@ android {
             java.setSrcDirs(listOf("../code"))
             kotlin.setSrcDirs(listOf("../code"))
         }
+        // Unit tests live in ../tests.
+        getByName("test") {
+            java.setSrcDirs(listOf("../tests"))
+            kotlin.setSrcDirs(listOf("../tests"))
+        }
+    }
+
+    testOptions {
+        // Lets code that calls android.util.Log run in plain unit tests.
+        unitTests.isReturnDefaultValues = true
     }
 }
 
@@ -68,6 +78,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
 
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-session:1.8.0")

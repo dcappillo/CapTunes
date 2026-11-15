@@ -1,5 +1,6 @@
 package app.captunes.ui.collection
 
+import app.captunes.util.guarded
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +56,7 @@ fun ArtistScreen(vm: MainViewModel, id: String, onBack: () -> Unit, onOpen: (Car
     val load by produceState<Load<ArtistDetail>>(Load.Loading, id, attempt) {
         val repo = vm.repo
         value = if (repo == null) Load.Failed("Not signed in")
-        else runCatching { Load.Ready(repo.artist(id)) }.getOrElse { Load.Failed(it.message ?: "Couldn't load artist") }
+        else guarded("ArtistScreen") { Load.Ready(repo.artist(id)) }.getOrElse { Load.Failed(it.message ?: "Couldn't load artist") }
     }
     when (val state = load) {
         Load.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -85,7 +86,7 @@ private fun ArtistContent(artist: ArtistDetail, vm: MainViewModel, onBack: () ->
         val repo = vm.repo ?: return
         loadingTracks = true
         scope.launch {
-            val tracks = runCatching { repo.artistTracks(artist.id, artist.albums) }.getOrDefault(emptyList())
+            val tracks = guarded("ArtistScreen") { repo.artistTracks(artist.id, artist.albums) }.getOrDefault(emptyList())
             loadingTracks = false
             if (tracks.isEmpty()) vm.toast("No songs found for ${artist.name}")
             else vm.play(tracks, -1, PlayContext(key, "Artist", artist.name), shuffle)

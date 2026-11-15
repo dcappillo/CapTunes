@@ -1,5 +1,6 @@
 package app.captunes.data
 
+import app.captunes.util.guarded
 import android.Manifest
 import android.content.ContentUris
 import android.content.ContentValues
@@ -33,7 +34,7 @@ class LocalSource(context: Context, private val playLog: PlayLog) : MusicSource 
 
     init {
         // New or deleted songs: rebuild the catalog next time it's needed.
-        runCatching {
+        guarded("LocalSource") {
             app.contentResolver.registerContentObserver(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, true,
                 object : ContentObserver(Handler(Looper.getMainLooper())) {

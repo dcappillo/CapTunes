@@ -1,5 +1,6 @@
 package app.captunes.data
 
+import app.captunes.util.guarded
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
@@ -45,14 +46,14 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
 
     suspend fun build(p: TasteProfile, now: Long = System.currentTimeMillis()): List<GeneratedMix> =
         coroutineScope {
-            val era = runCatching { eraBalance(p) }.getOrDefault(emptyMap())
+            val era = guarded("SmartMixes") { eraBalance(p) }.getOrDefault(emptyMap())
             // Look up world popularity for songs you've played, in the background.
             withContext(Dispatchers.IO) {
                 Popularity.request(p.known.values, log.ranks(p.known.keys).keys)
             }
             val ctx = Mixing(emptyMap(), era)
             val daily = async { if (p.totalPlays >= MIN_PLAYS_FOR_DAILY) dailyMixes(p, ctx) else emptyList() }
-            val deep = async { runCatching { deepCuts(p) }.getOrNull() }
+            val deep = async { guarded("SmartMixes") { deepCuts(p) }.getOrNull() }
             listOfNotNull(onRepeat(p), rediscover(p, now), deep.await()) + daily.await()
         }.also { MixStore.put(it) }
 
@@ -61,8 +62,8 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
     private suspend fun dailyMixes(p: TasteProfile, ctx: Mixing): List<GeneratedMix> = coroutineScope {
         val genreSeeds = p.topGenres.take(5)
         val artistSeeds = if (genreSeeds.size >= 3) emptyList() else p.topArtists.take(5 - genreSeeds.size)
-        val jobs = genreSeeds.map { g -> async { runCatching { genreMix(p, g, ctx) }.getOrNull() } } +
-            artistSeeds.map { a -> async { runCatching { artistMix(p, a, ctx) }.getOrNull() } }
+        val jobs = genreSeeds.map { g -> async { guarded("SmartMixes") { genreMix(p, g, ctx) }.getOrNull() } } +
+            artistSeeds.map { a -> async { guarded("SmartMixes") { artistMix(p, a, ctx) }.getOrNull() } }
         jobs.awaitAll().filterNotNull().mapIndexed { i, (seeded, tracks) ->
             val (seed, label) = seeded
             val headliners = tracks.groupingBy { it.artist }.eachCount().entries
@@ -122,7 +123,7 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
         }.orEmpty()
     }
 
-    private suspend fun eraOrEmpty(p: TasteProfile) = runCatching { eraBalance(p) }.getOrDefault(emptyMap())
+    private suspend fun eraOrEmpty(p: TasteProfile) = guarded("SmartMixes") { eraBalance(p) }.getOrDefault(emptyMap())
 
     private suspend fun artistMix(
         p: TasteProfile, artistKey: String, ctx: Mixing,
@@ -131,7 +132,7 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
         val circle = listOf(artistKey) + p.neighbors[artistKey].orEmpty().entries
             .sortedByDescending { it.value }.take(4).map { it.key }
         val ids = circle.mapNotNull { a -> p.known.values.firstOrNull { it.artist.lowercase() == a }?.artistId }
-        val tracks = ids.map { id -> async { runCatching { artistSongs(id, 4) }.getOrDefault(emptyList()) } }
+        val tracks = ids.map { id -> async { guarded("SmartMixes") { artistSongs(id, 4) }.getOrDefault(emptyList()) } }
             .awaitAll().flatten()
         val display = p.known.values.firstOrNull { it.artist.lowercase() == artistKey }?.artist ?: artistKey
         pick(p, (tracks + p.known.values.filter { it.artist.lowercase() in circle }).distinctBy { it.id }, ctx, exclude, size)
@@ -259,7 +260,7 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
         val artistIds = p.topArtists.take(8)
             .mapNotNull { a -> p.known.values.firstOrNull { it.artist.lowercase() == a }?.artistId }
         if (artistIds.size < 3) return@coroutineScope null
-        val tracks = artistIds.map { id -> async { runCatching { artistSongs(id, 6) }.getOrDefault(emptyList()) } }
+        val tracks = artistIds.map { id -> async { guarded("SmartMixes") { artistSongs(id, 6) }.getOrDefault(emptyList()) } }
             .awaitAll().flatten()
             .filter { it.id !in p.known }
             .distinctBy { it.id }
@@ -276,7 +277,7 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
 
     private suspend fun artistSongs(artistId: String, maxAlbums: Int): List<Track> = coroutineScope {
         source.artist(artistId).albums.take(maxAlbums)
-            .map { a -> async { runCatching { source.album(a.id).tracks }.getOrDefault(emptyList()) } }
+            .map { a -> async { guarded("SmartMixes") { source.album(a.id).tracks }.getOrDefault(emptyList()) } }
             .awaitAll().flatten()
     }
 }

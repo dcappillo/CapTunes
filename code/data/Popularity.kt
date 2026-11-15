@@ -1,5 +1,6 @@
 package app.captunes.data
 
+import app.captunes.util.guarded
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,7 +40,7 @@ object Popularity {
             for (track in queue) {
                 // Checked again here in case the switch was turned off while songs were waiting.
                 if (Lookups.enabled) {
-                    runCatching { lookup(track) }.onSuccess { rank -> playLog.saveRank(track.id, rank ?: 0) }
+                    guarded("Popularity") { lookup(track) }.onSuccess { rank -> playLog.saveRank(track.id, rank ?: 0) }
                 }
                 pending -= track.id
                 delay(140)
@@ -72,7 +73,7 @@ object Popularity {
             .addQueryParameter("limit", "5")
             .build()
         val body = Net.http.newCall(Request.Builder().url(url).build()).execute().use { r ->
-            if (r.isSuccessful) r.body?.string() else null
+            if (r.isSuccessful) Net.text(r, Net.MAX_LOOKUP_REPLY) else null
         } ?: return null
         val hits = Net.json.decodeFromString(Result.serializer(), body).data
         if (hits.isEmpty()) return null
@@ -83,8 +84,15 @@ object Popularity {
     }
 
     /** "Red (Taylor's Version) - Remastered 2009" → "Red (Taylor's Version)": drops remaster/edit tags. */
-    private fun clean(title: String): String =
-        title.replace(Regex("""\s*[-(\[]\s*(\d{4}\s*)?(remaster(ed)?|mono|stereo|single version|radio edit|bonus track)[^)\]]*[)\]]?""", RegexOption.IGNORE_CASE), "")
-            .trim()
-            .ifBlank { title }
+    private fun clean(title: String): String {
+        // Titles are capped first: the pattern below can get very slow on extremely long text.
+        val short = title.take(MAX_TITLE)
+        return short.replace(TAGS, "").trim().ifBlank { short }
+    }
+
+    private const val MAX_TITLE = 200
+    private val TAGS = Regex(
+        """\s*[-(\[]\s*(\d{4}\s*)?(remaster(ed)?|mono|stereo|single version|radio edit|bonus track)[^)\]]*[)\]]?""",
+        RegexOption.IGNORE_CASE,
+    )
 }

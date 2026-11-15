@@ -1,5 +1,6 @@
 package app.captunes.ui.wrapped
 
+import app.captunes.util.guarded
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -47,7 +48,7 @@ import kotlinx.coroutines.withContext
 fun WrappedScreen(vm: MainViewModel, year: Int, onClose: () -> Unit) {
     val stats by produceState<WrappedStats?>(null, year) {
         value = withContext(Dispatchers.IO) {
-            vm.repo?.let { runCatching { Wrapped.compute(it.playLog(), year) }.getOrNull() }
+            vm.repo?.let { guarded("WrappedScreen") { Wrapped.compute(it.playLog(), year) }.getOrNull() }
         }
     }
     Box(Modifier.fillMaxSize().background(Night)) {

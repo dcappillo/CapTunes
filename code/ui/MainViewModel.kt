@@ -1,5 +1,6 @@
 package app.captunes.ui
 
+import app.captunes.util.guarded
 import app.captunes.data.Lookups
 import app.captunes.data.MixStore
 import app.captunes.data.PlayLog
@@ -150,7 +151,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun download(tracks: List<Track>) {
-        Downloads.download(getApplication(), tracks)
+        if (!Downloads.download(getApplication(), tracks)) {
+            _messages.tryEmit("Not enough free space on this phone to download more")
+            return
+        }
         _messages.tryEmit(if (tracks.size == 1) "Downloading" else "Downloading ${tracks.size} songs")
     }
 
@@ -193,7 +197,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _login.value = LoginState(loading = true)
         viewModelScope.launch {
             val candidate = Session.create(server, user, password)
-            val result = runCatching { SubsonicApi(candidate).ping() }
+            val result = guarded("MainViewModel") { SubsonicApi(candidate).ping() }
             result.onSuccess {
                 Graph.signIn(getApplication(), candidate)
                 _login.value = LoginState()
@@ -236,7 +240,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             Downloads.removeAll(app)
             val images = SingletonImageLoader.get(app)
             images.memoryCache?.clear()
-            viewModelScope.launch(Dispatchers.IO) { runCatching { images.diskCache?.clear() } }
+            viewModelScope.launch(Dispatchers.IO) { guarded("MainViewModel") { images.diskCache?.clear() } }
         }
         Graph.signOut(app)
         _session.value = null
@@ -256,18 +260,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         Graph.source?.invalidate()
         viewModelScope.launch {
             _home.value = Load.Loading
-            _home.value = runCatching { Load.Ready(r.home()) }
+            _home.value = guarded("MainViewModel") { Load.Ready(r.home()) }
                 .getOrElse { Load.Failed(it.message ?: "Couldn't reach your server") }
         }
         viewModelScope.launch {
-            _library.value = runCatching { r.library() }.getOrElse { LibraryData(loading = false) }
+            _library.value = guarded("MainViewModel") { r.library() }.getOrElse { LibraryData(loading = false) }
         }
-        viewModelScope.launch { _genres.value = runCatching { r.genres() }.getOrDefault(emptyList()) }
+        viewModelScope.launch { _genres.value = guarded("MainViewModel") { r.genres() }.getOrDefault(emptyList()) }
         viewModelScope.launch { refreshLiked() }
     }
 
     private suspend fun refreshLiked() {
-        val songs = runCatching { repo?.likedSongs() }.getOrNull() ?: return
+        val songs = guarded("MainViewModel") { repo?.likedSongs() }.getOrNull() ?: return
         _likedSongs.value = songs
         _likedIds.update { it + songs.map { song -> song.id } }
     }
@@ -281,7 +285,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         _search.update { it.copy(loading = true) }
-        _search.value = runCatching { r.search(q.trim(), _library.value.playlists) }
+        _search.value = guarded("MainViewModel") { r.search(q.trim(), _library.value.playlists) }
             .getOrElse { SearchData() }
     }
 
@@ -296,7 +300,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         playerController.markStarred(track.id, nowLiked)
         viewModelScope.launch {
-            runCatching { repo?.setStarred(track.id, isAlbum = false, starred = nowLiked) }
+            guarded("MainViewModel") { repo?.setStarred(track.id, isAlbum = false, starred = nowLiked) }
                 .onFailure { _messages.tryEmit("Couldn't update Liked Songs") }
         }
     }
@@ -305,7 +309,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val nowLiked = albumId !in _likedIds.value
         _likedIds.update { if (nowLiked) it + albumId else it - albumId }
         viewModelScope.launch {
-            runCatching { repo?.setStarred(albumId, isAlbum = true, starred = nowLiked) }
+            guarded("MainViewModel") { repo?.setStarred(albumId, isAlbum = true, starred = nowLiked) }
             _messages.tryEmit(if (nowLiked) "Saved to your library" else "Removed from your library")
         }
     }
@@ -313,7 +317,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** "Not for me": the mixes stop picking this song; skips it if it's playing. */
     fun dislike(track: Track) {
         val r = repo ?: return
-        viewModelScope.launch(Dispatchers.IO) { runCatching { r.dislike(track) } }
+        viewModelScope.launch(Dispatchers.IO) { guarded("MainViewModel") { r.dislike(track) } }
         if (player.value.current?.id == track.id) playerController.next()
         _messages.tryEmit("Got it. Cap Tunes will play this less.")
     }
@@ -351,7 +355,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun createPlaylist(name: String, songs: List<Track> = emptyList()) {
         val r = repo ?: return
         viewModelScope.launch {
-            runCatching { r.createPlaylist(name.trim(), songs.map { it.id }) }
+            guarded("MainViewModel") { r.createPlaylist(name.trim(), songs.map { it.id }) }
                 .onSuccess {
                     _messages.tryEmit("Created \"${name.trim()}\"")
                     playlistsChanged(r)
@@ -365,7 +369,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun addToPlaylist(playlistId: String, playlistTitle: String, track: Track) {
         val r = repo ?: return
         viewModelScope.launch {
-            runCatching { r.addToPlaylist(playlistId, track.id) }
+            guarded("MainViewModel") { r.addToPlaylist(playlistId, track.id) }
                 .onSuccess {
                     _messages.tryEmit("Added to $playlistTitle")
                     playlistsChanged(r)
@@ -378,7 +382,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val r = repo ?: return
         val newName = name.trim().ifBlank { return }
         viewModelScope.launch {
-            runCatching { r.renamePlaylist(playlistId, newName) }
+            guarded("MainViewModel") { r.renamePlaylist(playlistId, newName) }
                 .onSuccess {
                     _messages.tryEmit("Renamed to \"$newName\"")
                     playlistsChanged(r)
@@ -391,7 +395,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun removeFromPlaylist(playlistId: String, index: Int, track: Track) {
         val r = repo ?: return
         viewModelScope.launch {
-            runCatching { r.removeFromPlaylist(playlistId, index) }
+            guarded("MainViewModel") { r.removeFromPlaylist(playlistId, index) }
                 .onSuccess {
                     _messages.tryEmit("Removed \"${track.title}\"")
                     playlistsChanged(r)
@@ -403,7 +407,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun deletePlaylist(playlistId: String, title: String) {
         val r = repo ?: return
         viewModelScope.launch {
-            runCatching { r.deletePlaylist(playlistId) }
+            guarded("MainViewModel") { r.deletePlaylist(playlistId) }
                 .onSuccess {
                     _messages.tryEmit("Deleted \"$title\"")
                     playlistsChanged(r)
@@ -415,7 +419,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Reloads the playlist list and tells any open playlist screen to reload itself. */
     private suspend fun playlistsChanged(r: Repository) {
         _playlistVersion.value++
-        _library.value = runCatching { r.library() }.getOrDefault(_library.value)
+        _library.value = guarded("MainViewModel") { r.library() }.getOrDefault(_library.value)
     }
 
     // ---- sheets ----

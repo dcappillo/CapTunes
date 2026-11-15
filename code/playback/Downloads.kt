@@ -1,5 +1,6 @@
 package app.captunes.playback
 
+import app.captunes.util.guarded
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.compose.runtime.Immutable
@@ -74,7 +75,7 @@ object Downloads {
         )
 
     /** True once a song is fully downloaded. Reads the download database, so it works in the service too. */
-    fun isDownloaded(context: Context, songId: String): Boolean = runCatching {
+    fun isDownloaded(context: Context, songId: String): Boolean = guarded("Downloads") {
         manager(context).downloadIndex.getDownload(songId)?.state == Download.STATE_COMPLETED
     }.getOrDefault(false)
 
@@ -107,7 +108,7 @@ object Downloads {
 
     private fun refresh(m: DownloadManager) {
         val map = HashMap<String, DownloadInfo>()
-        runCatching {
+        guarded("Downloads") {
             m.downloadIndex.getDownloads().use { c ->
                 while (c.moveToNext()) info(c.download)?.let { map[it.track.id] = it }
             }
@@ -120,14 +121,22 @@ object Downloads {
     }
 
     private fun info(d: Download): DownloadInfo? {
-        val track = runCatching {
+        val track = guarded("Downloads") {
             Net.json.decodeFromString(Track.serializer(), String(d.request.data, Charsets.UTF_8))
         }.getOrNull() ?: return null
         return DownloadInfo(track, d.state, d.percentDownloaded.coerceAtLeast(0f))
     }
 
-    fun download(context: Context, tracks: List<Track>) {
-        val source = Graph.source ?: return
+    /** Leave this much free so downloads can't fill the phone. */
+    private const val MIN_FREE_BYTES = 500L * 1024 * 1024
+
+    fun hasRoom(context: Context): Boolean =
+        guarded("Downloads") { context.applicationContext.filesDir.usableSpace > MIN_FREE_BYTES }.getOrDefault(true)
+
+    /** Returns false, without starting anything, when the phone is nearly full. */
+    fun download(context: Context, tracks: List<Track>): Boolean {
+        if (!hasRoom(context)) return false
+        val source = Graph.source ?: return false
         tracks.filter { _items.value[it.id]?.let { i -> i.done || i.active } != true }.forEach { t ->
             val request = DownloadRequest.Builder(t.id, source.streamUri(t.id, t.suffix).toUri())
                 .setCustomCacheKey(t.id)
@@ -135,6 +144,7 @@ object Downloads {
                 .build()
             DownloadService.sendAddDownload(context, CapTunesDownloadService::class.java, request, false)
         }
+        return true
     }
 
     fun remove(context: Context, tracks: List<Track>) {
@@ -148,7 +158,7 @@ object Downloads {
     fun downloadedTracks(): List<Track> = _items.value.values.filter { it.done }.map { it.track }
         .sortedWith(compareBy({ it.artist.lowercase() }, { it.album.lowercase() }))
 
-    fun bytesUsed(context: Context): Long = runCatching { cache(context).cacheSpace }.getOrDefault(0L)
+    fun bytesUsed(context: Context): Long = guarded("Downloads") { cache(context).cacheSpace }.getOrDefault(0L)
 
     fun wifiOnly(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("wifiOnly", true)

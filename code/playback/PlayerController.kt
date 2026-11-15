@@ -1,5 +1,6 @@
 package app.captunes.playback
 
+import app.captunes.util.guarded
 import android.net.Uri
 import android.content.ComponentName
 import android.content.Context
@@ -125,7 +126,7 @@ class PlayerController(private val appContext: Context) {
         val exclude = (0 until count).mapTo(HashSet()) { c.getMediaItemAt(it).mediaId }
         extending = true
         scope.launch {
-            val more = runCatching {
+            val more = guarded("PlayerController") {
                 withContext(Dispatchers.IO) { repo.moreForMix(key.removePrefix("Mix:"), exclude) }
             }.getOrDefault(emptyList())
             if (more.isEmpty()) extendGaveUpAt = count

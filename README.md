@@ -41,12 +41,18 @@ Two online lookups are **off until you turn them on**: synced lyrics from [LRCLI
 
 The full policy is in [PRIVACY.md](PRIVACY.md).
 
+## Tests
+
+Unit tests live in `tests/`. Run them with the Gradle task `app > Tasks > verification > testDebugUnitTest`, or `./gradlew testDebugUnitTest`. They also run on every push through GitHub Actions.
+
 ## Project layout
 
 ```
 code/data/       music sources (server + on-device), play log, taste engine, mixes, lyrics, popularity
 code/playback/   background player service, queue, downloads, play logging
 code/ui/         Compose screens: home, search, library, album/playlist/artist, player, Wrapped
+code/util/       small shared helpers (error logging)
+tests/          unit tests
 app/             Android manifest, resources, Gradle build
 ```
 

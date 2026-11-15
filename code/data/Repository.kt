@@ -1,5 +1,6 @@
 package app.captunes.data
 
+import app.captunes.util.guarded
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
@@ -14,20 +15,28 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
     init { Popularity.start(playLog) }
 
     /** Current taste profile, built from the on-device play log. */
-    fun taste(): TasteProfile = Taste.build(playLog.rows())
+    /**
+     * Your taste, from plays that belong to the library in use: on-phone plays in
+     * "music on this phone" mode, server plays otherwise. Mixing them would let mixes
+     * pick songs this library can't play.
+     */
+    fun taste(): TasteProfile {
+        val onPhone = source is LocalSource
+        return Taste.build(playLog.rows().filter { it.track.id.startsWith(LocalSource.SONG) == onPhone })
+    }
 
     fun playLog(): PlayLog = playLog
 
     suspend fun ping() = source.ping()
 
     suspend fun home(): HomeData = coroutineScope {
-        val recent = async { runCatching { source.albums(AlbumOrder.Recent, 12) }.getOrDefault(emptyList()) }
-        val frequent = async { runCatching { source.albums(AlbumOrder.Frequent, 12) }.getOrDefault(emptyList()) }
+        val recent = async { guarded("Repository") { source.albums(AlbumOrder.Recent, 12) }.getOrDefault(emptyList()) }
+        val frequent = async { guarded("Repository") { source.albums(AlbumOrder.Frequent, 12) }.getOrDefault(emptyList()) }
         val newest = async { source.albums(AlbumOrder.Newest, 12) }
         val random = async { source.albums(AlbumOrder.Random, 12) }
-        val playlists = async { runCatching { source.playlists() }.getOrDefault(emptyList()) }
-        val genres = async { runCatching { source.genres() }.getOrDefault(emptyList()) }
-        val decades = async { runCatching { decadeCards() }.getOrDefault(emptyList()) }
+        val playlists = async { guarded("Repository") { source.playlists() }.getOrDefault(emptyList()) }
+        val genres = async { guarded("Repository") { source.genres() }.getOrDefault(emptyList()) }
+        val decades = async { guarded("Repository") { decadeCards() }.getOrDefault(emptyList()) }
 
         val playlistCards = playlists.await().map { it.toCard() }
         val recentCards = recent.await().map { it.toCard() }
@@ -35,8 +44,8 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
         val quick = (playlistCards.take(3) + recentCards + newestCards)
             .distinctBy { it.id }.take(8)
 
-        val profile = withContext(Dispatchers.IO) { runCatching { taste() }.getOrNull() }
-        val generated = profile?.let { runCatching { smart.build(it) }.getOrNull() }.orEmpty()
+        val profile = withContext(Dispatchers.IO) { guarded("Repository") { taste() }.getOrNull() }
+        val generated = profile?.let { guarded("Repository") { smart.build(it) }.getOrNull() }.orEmpty()
         val smartDaily = generated.filter { it.card.id.startsWith("smart:daily") }.map { it.card }
         val learning = (profile?.totalPlays ?: 0).coerceAtMost(SmartMixes.MIN_PLAYS_FOR_DAILY)
 
@@ -143,7 +152,7 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
         }
         if (!id.startsWith("smart:")) return null
         val mix = MixStore.get(id) ?: run {
-            runCatching { smart.build(withContext(Dispatchers.IO) { taste() }) }
+            guarded("Repository") { smart.build(withContext(Dispatchers.IO) { taste() }) }
             MixStore.get(id)
         } ?: return null
         return CollectionDetail(Kind.Mix, id, mix.card.title, "Mix", "Made for you", null, null, null, mix.tracks, false)
@@ -162,7 +171,7 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
     suspend fun artistTracks(artistId: String, albums: List<Card>): List<Track> = coroutineScope {
         albums.take(15).map { c ->
             async {
-                val album = runCatching { source.album(c.id) }.getOrNull() ?: return@async emptyList()
+                val album = guarded("Repository") { source.album(c.id) }.getOrNull() ?: return@async emptyList()
                 // Their own albums play in full; from compilations, only their songs.
                 if (album.artistId == artistId) album.tracks else album.tracks.filter { it.artistId == artistId }
             }
@@ -197,14 +206,14 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
      */
     suspend fun lyrics(track: Track): Lyrics? {
         lyricsCache[track.id]?.let { return it.takeIf { l -> l.lines.isNotEmpty() } }
-        val list = runCatching { source.lyrics(track.id) }.getOrDefault(emptyList())
+        val list = guarded("Repository") { source.lyrics(track.id) }.getOrDefault(emptyList())
         var lookupFailed = false
         val serverSynced = list.firstOrNull { it.synced && it.lines.isNotEmpty() }
         val serverPlain = list.firstOrNull { it.lines.isNotEmpty() }
         val result = when {
             serverSynced != null -> serverSynced
             else -> {
-                val lookup = if (Lookups.enabled) runCatching { LrcLib.find(track) } else null
+                val lookup = if (Lookups.enabled) guarded("Repository") { LrcLib.find(track) } else null
                 if (lookup?.isFailure == true) lookupFailed = true
                 val online = lookup?.getOrNull()
                 when {

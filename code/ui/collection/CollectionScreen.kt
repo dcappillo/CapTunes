@@ -1,5 +1,6 @@
 package app.captunes.ui.collection
 
+import app.captunes.util.guarded
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import app.captunes.ui.library.NewPlaylistDialog
@@ -65,7 +66,7 @@ fun CollectionScreen(
     val load by produceState<Load<CollectionDetail>>(Load.Loading, kind, id, attempt, edits) {
         val repo = vm.repo
         value = if (repo == null) Load.Failed("Not signed in")
-        else runCatching { Load.Ready(repo.collection(kind, id)) }
+        else guarded("CollectionScreen") { Load.Ready(repo.collection(kind, id)) }
             .getOrElse { Load.Failed(it.message ?: "Couldn't load this") }
     }
     val liked by vm.likedSongs.collectAsStateWithLifecycle()

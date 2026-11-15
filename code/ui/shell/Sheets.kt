@@ -1,5 +1,6 @@
 package app.captunes.ui.shell
 
+import app.captunes.util.guarded
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.AlertDialog
@@ -182,7 +183,7 @@ fun DevicesSheet(onDismiss: () -> Unit) {
             }
         }
         SheetItem(Icons.Default.Bluetooth, "Bluetooth speakers and headphones") {
-            runCatching {
+            guarded("Sheets") {
                 context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             onDismiss()

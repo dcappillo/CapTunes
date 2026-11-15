@@ -1,7 +1,6 @@
 package app.captunes.data
 
 import android.content.Context
-import android.net.Uri
 import java.net.URLEncoder
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -64,43 +63,10 @@ class Session(
             return Session(normalize(server), user.trim(), md5(password + salt), salt)
         }
 
-        fun normalize(raw: String): String {
-            val trimmed = raw.trim().trimEnd('/')
-            // Accept "Https://…" and the like: phone keyboards capitalize the first letter.
-            return when {
-                trimmed.startsWith("https://", ignoreCase = true) -> "https://" + trimmed.substring(8)
-                trimmed.startsWith("http://", ignoreCase = true) -> "http://" + trimmed.substring(7)
-                else -> "http://$trimmed"
-            }
-        }
+        fun normalize(raw: String): String = ServerAddress.normalize(raw)
 
-        /**
-         * https is always fine. Plain http is only allowed for Tailscale
-         * (100.64.0.0/10 or *.ts.net), private home-network ranges and localhost,
-         * so a login token never crosses the open internet unencrypted.
-         */
-        fun isSafeServer(server: String): Boolean {
-            val uri = Uri.parse(normalize(server))
-            if (uri.scheme == "https") return true
-            val host = uri.host?.lowercase()?.removePrefix("[")?.removeSuffix("]") ?: return false
-            if (host == "localhost" || host.endsWith(".ts.net")) return true
-            // IPv6: only this phone, link-local and private (fc00::/7, which includes Tailscale).
-            if (':' in host) {
-                return host == "::1" || host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")
-            }
-            // Single-word names (Tailscale MagicDNS like "mypc") can't be public internet hosts.
-            if ('.' !in host) return SINGLE_WORD.matches(host)
-            // IPv4: every part must be a number, so "10.0.0.1.example.com" doesn't count.
-            val parts = host.split(".").map { it.toIntOrNull()?.takeIf { n -> n in 0..255 } ?: return false }
-            if (parts.size != 4) return false
-            val (a, b) = parts[0] to parts[1]
-            return a == 10 || a == 127 ||
-                (a == 192 && b == 168) ||
-                (a == 172 && b in 16..31) ||
-                (a == 100 && b in 64..127)
-        }
-
-        private val SINGLE_WORD = Regex("[a-z0-9]([a-z0-9-]*[a-z0-9])?")
+        /** Whether this address may be used: see [ServerAddress.isSafe]. */
+        fun isSafeServer(server: String): Boolean = ServerAddress.isSafe(server)
 
         private fun md5(text: String): String =
             MessageDigest.getInstance("MD5").digest(text.toByteArray())

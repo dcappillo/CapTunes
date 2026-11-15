@@ -1,5 +1,6 @@
 package app.captunes.ui.components
 
+import app.captunes.util.guarded
 import android.content.Context
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -53,7 +54,7 @@ object ArtColors {
 fun rememberArtColor(coverArt: String?, seed: Int): State<Color> {
     val context = LocalContext.current
     val target = produceState(ArtColors.fallback(seed), coverArt, seed) {
-        value = runCatching { ArtColors.extract(context, coverArt, seed) }.getOrDefault(value)
+        value = guarded("ArtColor") { ArtColors.extract(context, coverArt, seed) }.getOrDefault(value)
     }
     return animateColorAsState(target.value, tween(400), label = "artColor")
 }

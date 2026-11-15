@@ -1,5 +1,6 @@
 package app.captunes.playback
 
+import app.captunes.util.guarded
 import android.content.Context
 import app.captunes.data.Net
 import app.captunes.data.Track
@@ -31,20 +32,23 @@ object QueueStore {
 
     private fun file(context: Context) = File(context.filesDir, "queue.json")
 
+    /** One save at a time: two overlapping saves used to share the temp file and could lose the queue. */
+    @Synchronized
     fun save(context: Context, snapshot: QueueSnapshot) {
-        runCatching {
+        guarded("QueueStore") {
             val tmp = File(context.filesDir, "queue.json.tmp")
             tmp.writeText(Net.json.encodeToString(QueueSnapshot.serializer(), snapshot))
             tmp.renameTo(file(context))
         }
     }
 
-    fun load(context: Context): QueueSnapshot? = runCatching {
+    fun load(context: Context): QueueSnapshot? = guarded("QueueStore") {
         val f = file(context)
         if (!f.exists()) null
         else Net.json.decodeFromString(QueueSnapshot.serializer(), f.readText())
     }.getOrNull()?.takeIf { it.tracks.isNotEmpty() }
 
+    @Synchronized
     fun clear(context: Context) {
         file(context).delete()
     }

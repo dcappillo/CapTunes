@@ -1,5 +1,7 @@
 package app.captunes.data
 
+import java.io.IOException
+import okhttp3.Response
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -14,6 +16,22 @@ object Net {
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    /**
+     * Reads a reply as text, refusing anything larger than [maxBytes], so a broken or
+     * hostile server can't make the app run out of memory.
+     */
+    fun text(response: Response, maxBytes: Long): String? {
+        val body = response.body ?: return null
+        val source = body.source()
+        source.request(maxBytes + 1)
+        if (source.buffer.size > maxBytes) throw IOException("Reply is too large (over ${maxBytes / 1_000_000} MB)")
+        return source.readString(body.contentType()?.charset(Charsets.UTF_8) ?: Charsets.UTF_8)
+    }
+
+    /** Library replies can be big (a long playlist); lookups never are. */
+    const val MAX_LIBRARY_REPLY = 32L * 1024 * 1024
+    const val MAX_LOOKUP_REPLY = 2L * 1024 * 1024
 
     val json = Json {
         ignoreUnknownKeys = true
@@ -32,7 +50,7 @@ class SubsonicApi(private val session: Session) {
         val request = Request.Builder().url(session.url(endpoint, params)).build()
         Net.http.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) throw ApiException("Server answered HTTP ${resp.code}")
-            val body = resp.body?.string() ?: throw ApiException("Empty response")
+            val body = Net.text(resp, Net.MAX_LIBRARY_REPLY) ?: throw ApiException("Empty response")
             val result = Net.json.decodeFromString(Envelope.serializer(), body).response
             if (result.status != "ok") {
                 throw ApiException(result.error?.message?.ifBlank { null } ?: "Server error")

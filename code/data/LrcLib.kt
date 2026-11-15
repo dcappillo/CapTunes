@@ -1,5 +1,6 @@
 package app.captunes.data
 
+import app.captunes.util.guarded
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -29,7 +30,7 @@ object LrcLib {
 
     suspend fun find(track: Track): Lyrics? = withContext(Dispatchers.IO) {
         val seconds = (track.durationMs / 1000).toInt()
-        val exact = runCatching {
+        val exact = guarded("LrcLib") {
             get(
                 "$BASE/get".toHttpUrl().newBuilder()
                     .addQueryParameter("track_name", track.title)
@@ -44,7 +45,7 @@ object LrcLib {
     }
 
     /** Fuzzy fallback: same title and artist, length within 3 seconds, synced preferred. */
-    private fun search(track: Track, seconds: Int): Entry? = runCatching {
+    private fun search(track: Track, seconds: Int): Entry? = guarded("LrcLib") {
         val url = "$BASE/search".toHttpUrl().newBuilder()
             .addQueryParameter("track_name", track.title)
             .addQueryParameter("artist_name", track.artist)
@@ -57,7 +58,7 @@ object LrcLib {
 
     private fun get(url: String): String? {
         val request = Request.Builder().url(url).header("User-Agent", AGENT).build()
-        return Net.http.newCall(request).execute().use { r -> if (r.isSuccessful) r.body?.string() else null }
+        return Net.http.newCall(request).execute().use { r -> if (r.isSuccessful) Net.text(r, Net.MAX_LOOKUP_REPLY) else null }
     }
 
     private fun Entry.toLyrics(): Lyrics? {
@@ -70,26 +71,6 @@ object LrcLib {
             ?.let { Lyrics(false, it.lines().map { l -> LyricLine(null, l) }, source = "LRCLIB") }
     }
 
-    private val stamp = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
-
     /** Parses "[mm:ss.xx] text" lines; a line may carry several timestamps. */
-    fun parseLrc(lrc: String): List<LyricLine> {
-        val out = ArrayList<LyricLine>()
-        for (raw in lrc.lines()) {
-            val stamps = stamp.findAll(raw).toList()
-            if (stamps.isEmpty()) continue
-            val text = raw.substring(stamps.last().range.last + 1).trim()
-            for (m in stamps) {
-                val (mm, ss, frac) = m.destructured
-                val fracMs = when (frac.length) {
-                    0 -> 0
-                    1 -> frac.toInt() * 100
-                    2 -> frac.toInt() * 10
-                    else -> frac.take(3).toInt()
-                }
-                out += LyricLine(mm.toLong() * 60_000 + ss.toLong() * 1000 + fracMs, text)
-            }
-        }
-        return out.sortedBy { it.startMs }
-    }
+    fun parseLrc(lrc: String): List<LyricLine> = Lrc.parse(lrc).map { (ms, text) -> LyricLine(ms, text) }
 }
