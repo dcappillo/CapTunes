@@ -1,5 +1,6 @@
 package app.captunes.playback
 
+import android.net.Uri
 import android.content.ComponentName
 import android.content.Context
 import androidx.compose.runtime.Immutable
@@ -245,12 +246,24 @@ private const val K_GENRE = "genre"
 private const val K_YEAR = "year"
 internal const val K_SUFFIX = "suffix"
 
+internal const val COVER_SCHEME = "captunes"
+
+/**
+ * Other apps can see a song's artwork address through the media session, and the real
+ * address carries the sign-in token. So we publish a stand-in that only names the cover;
+ * the playback service swaps in the real address when it loads the picture itself.
+ */
+private fun coverPlaceholder(coverArt: String?): Uri? =
+    coverArt?.takeIf { it.isNotBlank() }?.let {
+        Uri.Builder().scheme(COVER_SCHEME).authority("cover").appendQueryParameter("id", it).build()
+    }
+
 fun Track.toMediaItem(): MediaItem {
     val metadata = MediaMetadata.Builder()
         .setTitle(title)
         .setArtist(artist)
         .setAlbumTitle(album)
-        .setArtworkUri(Graph.source?.coverUri(coverArt)?.toUri())
+        .setArtworkUri(coverPlaceholder(coverArt))
         .setExtras(
             bundleOf(
                 K_ARTIST_ID to artistId, K_ALBUM_ID to albumId, K_COVER to coverArt,

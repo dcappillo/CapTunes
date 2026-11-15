@@ -176,6 +176,9 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
     private val lyricsCache = java.util.concurrent.ConcurrentHashMap<String, Lyrics>()
     private val noLyrics = Lyrics(false, emptyList())
 
+    /** Forgets remembered "no lyrics" answers, e.g. after online lookups are switched on. */
+    fun clearLyricsCache() = lyricsCache.clear()
+
     /**
      * Synced lyrics if anyone has them: your server first (embedded tags or .lrc),
      * then LRCLIB, then plain lyrics from either. Cached per song for this session.
@@ -188,7 +191,7 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
         val result = when {
             serverSynced != null -> serverSynced
             else -> {
-                val online = runCatching { LrcLib.find(track) }.getOrNull()
+                val online = if (Lookups.enabled) runCatching { LrcLib.find(track) }.getOrNull() else null
                 when {
                     online?.synced == true -> online
                     serverPlain != null -> Lyrics(false, serverPlain.lines.map { LyricLine(null, it.text) })

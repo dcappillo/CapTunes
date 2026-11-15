@@ -1,5 +1,6 @@
 package app.captunes.ui.login
 
+import androidx.compose.runtime.remember
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -62,7 +63,8 @@ fun LoginScreen(vm: MainViewModel) {
     val state by vm.login.collectAsStateWithLifecycle()
     var server by rememberSaveable { mutableStateOf("") }
     var user by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    // Not rememberSaveable: the password must not be written into the app's saved state.
+    var password by remember { mutableStateOf("") }
     var showPassword by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
     val submit = {
@@ -178,7 +180,7 @@ fun LoginScreen(vm: MainViewModel) {
             }
         }
         Text(
-            "Your password is never stored. Cap Tunes keeps only a one-way token.",
+            "Your password isn't saved. Cap Tunes keeps a sign-in token, encrypted on this phone.",
             color = TextDim,
             style = MaterialTheme.typography.bodySmall,
         )

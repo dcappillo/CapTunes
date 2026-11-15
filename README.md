@@ -10,7 +10,7 @@ Built with Kotlin, Jetpack Compose and Media3.
 - **Home** with quick picks, recently played, new additions, Rediscover, and playlists by decade.
 - **Smart mixes** that learn from what you finish, skip and dislike. Daily Mixes keep adding songs as you near the end, and an optional world-popularity signal from Deezer's public charts helps balance a library that leans heavily toward one era.
 - **Playlists:** create, rename and delete playlists, and add or remove songs, all from the app.
-- **Synced lyrics** from your server or [LRCLIB](https://lrclib.net), shown line by line on the album art or full screen.
+- **Synced lyrics** from your server or, if you turn online lookups on, [LRCLIB](https://lrclib.net), shown line by line on the album art or full screen.
 - **Wrapped:** a yearly recap built from your on-device play history.
 - **Player:** background playback with lock-screen and notification controls, a queue with drag-to-reorder, resume after restart, and offline downloads (server mode).
 - **Streaming quality:** pick the quality separately for mobile data and Wi-Fi (Original, 320, 192 or 128 kbps). Below Original, the server converts songs to a smaller MP3 so large lossless files don't buffer. Downloads stay original.
@@ -31,11 +31,15 @@ Download the latest `.apk` from the [Releases page](https://github.com/dcappillo
 
 Any Subsonic-compatible server works. Want to try it without your own? Use Navidrome's public demo: `https://demo.navidrome.org`, user `demo`, password `demo`.
 
-For safety, plain `http` is only accepted for private addresses (home network, [Tailscale](https://tailscale.com), localhost). Anything on the open internet must use `https`. Your password is never stored; the app keeps only the salted token the Subsonic API uses.
+For safety, plain `http` is only accepted for private addresses (home network, [Tailscale](https://tailscale.com), localhost). Anything on the open internet must use `https`. Your password isn't saved. The app keeps the sign-in token the Subsonic API uses, encrypted with a key in the phone's Android Keystore. That token works like a password for your server, so signing out removes it along with downloads and cached cover art.
 
 ## Privacy
 
-Cap Tunes has no accounts, analytics or ads. Your play history stays on your device. Two optional lookups send a song's **title, artist and length** to public services: [LRCLIB](https://lrclib.net) for lyrics and [Deezer](https://developers.deezer.com/api)'s public search for world popularity.
+Cap Tunes has no accounts, analytics or ads. Your play history stays on your device, and you can erase it from Account.
+
+Two online lookups are **off until you turn them on**: synced lyrics from [LRCLIB](https://lrclib.net) and world popularity from [Deezer](https://developers.deezer.com/api)'s public search. When they're on, the app sends those services the **title, artist, album and length** of songs you play. The app asks once after you sign in, and the switch is in Account.
+
+The full policy is in [PRIVACY.md](PRIVACY.md).
 
 ## Project layout
 

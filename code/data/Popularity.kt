@@ -19,7 +19,7 @@ import kotlin.math.log10
  *
  * Lookups run quietly in the background, about 7 per second (Deezer's limit
  * is 10), and are cached on the phone for 90 days. Mixes use whatever is cached and get
- * sharper as more songs are looked up. Only title, artist and length are sent.
+ * sharper as more songs are looked up. Only title, artist, album and length are sent.
  */
 object Popularity {
     @Serializable private data class Artist(val name: String = "")
@@ -37,7 +37,10 @@ object Popularity {
         log = playLog
         scope.launch {
             for (track in queue) {
-                runCatching { lookup(track) }.onSuccess { rank -> playLog.saveRank(track.id, rank ?: 0) }
+                // Checked again here in case the switch was turned off while songs were waiting.
+                if (Lookups.enabled) {
+                    runCatching { lookup(track) }.onSuccess { rank -> playLog.saveRank(track.id, rank ?: 0) }
+                }
                 pending -= track.id
                 delay(140)
             }
@@ -46,6 +49,7 @@ object Popularity {
 
     /** Queue songs that have no cached rank yet. */
     fun request(tracks: Collection<Track>, known: Set<String>) {
+        if (!Lookups.enabled) return
         for (t in tracks) {
             if (t.id in known || !pending.add(t.id)) continue
             if (queue.trySend(t).isFailure) { pending -= t.id; break }

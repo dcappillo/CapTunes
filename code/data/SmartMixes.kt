@@ -17,6 +17,7 @@ object MixStore {
     private val mixes = ConcurrentHashMap<String, GeneratedMix>()
     fun put(all: List<GeneratedMix>) = all.forEach { mixes[it.card.id] = it }
     fun get(id: String): GeneratedMix? = mixes[id]
+    fun clear() = mixes.clear()
 }
 
 /**

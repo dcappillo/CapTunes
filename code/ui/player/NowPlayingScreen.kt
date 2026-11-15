@@ -1,5 +1,6 @@
 package app.captunes.ui.player
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -90,8 +91,9 @@ fun NowPlayingScreen(
     var backProgress by remember { mutableFloatStateOf(0f) }
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
+    val lookupsOn by vm.lookups.collectAsStateWithLifecycle()
     var lyricsOnArt by rememberSaveable { mutableStateOf(true) }
-    val lyrics = rememberLyrics(track, vm.repo)
+    val lyrics = rememberLyrics(track, vm.repo, lookupsOn)
     val drag = remember { Animatable(0f) }
 
     // System back / predictive back gesture shrinks the sheet, then closes it.
@@ -195,7 +197,8 @@ fun NowPlayingScreen(
                 )
                 if (lyrics is LyricsState.Missing) {
                     Text(
-                        "No lyrics found for this song.",
+                        if (lookupsOn) "No lyrics found for this song."
+                        else "No lyrics on your server for this song. Turn on online lyrics in Account to search for them.",
                         color = Color.White.copy(alpha = 0.5f),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 16.dp),

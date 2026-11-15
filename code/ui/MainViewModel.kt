@@ -1,5 +1,11 @@
 package app.captunes.ui
 
+import app.captunes.data.Lookups
+import app.captunes.data.MixStore
+import app.captunes.data.PlayLog
+import app.captunes.playback.QueueStore
+import coil3.SingletonImageLoader
+import kotlinx.coroutines.withContext
 import android.app.Application
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
@@ -99,6 +105,30 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _wifiOnly = MutableStateFlow(Downloads.wifiOnly(app))
     val wifiOnly: StateFlow<Boolean> = _wifiOnly.asStateFlow()
 
+    private val _lookups = MutableStateFlow(Lookups.enabled)
+    val lookups: StateFlow<Boolean> = _lookups.asStateFlow()
+
+    private val _lookupsAsked = MutableStateFlow(Lookups.asked)
+    val lookupsAsked: StateFlow<Boolean> = _lookupsAsked.asStateFlow()
+
+    /** Turns the LRCLIB and Deezer lookups on or off. Off means nothing is sent to either. */
+    fun setLookups(on: Boolean) {
+        Lookups.set(getApplication(), on)
+        _lookups.value = on
+        _lookupsAsked.value = true
+        if (on) repo?.clearLyricsCache() // so songs marked "no lyrics" are looked up again
+    }
+
+    /** Deletes every recorded play, so mixes and Wrapped start over. */
+    fun eraseHistory() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { PlayLog.get(getApplication()).eraseAll() }
+            MixStore.clear()
+            _messages.tryEmit("Listening history erased")
+            refresh()
+        }
+    }
+
     private val _cellularKbps = MutableStateFlow(StreamQuality.cellularKbps(app))
     val cellularKbps: StateFlow<Int> = _cellularKbps.asStateFlow()
 
@@ -191,9 +221,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    /**
+     * Signs out and removes everything tied to the server from this phone: the sign-in,
+     * downloads, the saved queue, generated mixes and cached cover art (their saved
+     * addresses carry the sign-in token). Listening history has its own "Erase" action.
+     */
     fun signOut() {
+        val app = getApplication<Application>()
+        val wasLocal = Graph.session?.isLocal == true
         playerController.stop()
-        Graph.signOut(getApplication())
+        QueueStore.clear(app)
+        MixStore.clear()
+        if (!wasLocal) {
+            Downloads.removeAll(app)
+            val images = SingletonImageLoader.get(app)
+            images.memoryCache?.clear()
+            viewModelScope.launch(Dispatchers.IO) { runCatching { images.diskCache?.clear() } }
+        }
+        Graph.signOut(app)
         _session.value = null
         _home.value = Load.Loading
         _library.value = LibraryData()

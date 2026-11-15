@@ -1,5 +1,8 @@
 package app.captunes.ui.shell
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import app.captunes.playback.StreamQuality
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -59,6 +62,8 @@ fun AppShell(vm: MainViewModel) {
     val wifiOnly by vm.wifiOnly.collectAsStateWithLifecycle()
     val cellularKbps by vm.cellularKbps.collectAsStateWithLifecycle()
     val wifiKbps by vm.wifiKbps.collectAsStateWithLifecycle()
+    val lookups by vm.lookups.collectAsStateWithLifecycle()
+    val lookupsAsked by vm.lookupsAsked.collectAsStateWithLifecycle()
 
     var expanded by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
@@ -183,6 +188,26 @@ fun AppShell(vm: MainViewModel) {
             onRefresh = vm::refresh,
             onSignOut = vm::signOut,
             local = session?.isLocal == true,
+            lookups = lookups,
+            onLookups = vm::setLookups,
+            onEraseHistory = vm::eraseHistory,
+        )
+    }
+
+    // Asked once, the first time you're signed in. Nothing is sent until you say yes.
+    if (session != null && !lookupsAsked) {
+        AlertDialog(
+            onDismissRequest = { vm.setLookups(false) },
+            title = { Text("Look up lyrics and popularity online?") },
+            text = {
+                Text(
+                    "Cap Tunes can fetch synced lyrics from LRCLIB and world popularity from Deezer. " +
+                        "To do that it sends them the title, artist, album and length of songs you play. " +
+                        "You can change this any time in Account.",
+                )
+            },
+            confirmButton = { TextButton(onClick = { vm.setLookups(true) }) { Text("Turn on") } },
+            dismissButton = { TextButton(onClick = { vm.setLookups(false) }) { Text("Not now") } },
         )
     }
 }

@@ -9,8 +9,9 @@ import java.security.SecureRandom
 /**
  * Credentials for one Navidrome server.
  *
- * Uses Subsonic token auth: the password itself is never stored or sent.
- * Every request carries t = md5(password + salt) and the salt.
+ * Uses Subsonic token auth: every request carries t = md5(password + salt) and the salt.
+ * The password itself isn't kept, but the token works like a password for this server,
+ * so it's saved encrypted (see [Vault]) and must never be handed to other apps.
  */
 class Session(
     val server: String,
@@ -77,10 +78,16 @@ class Session(
         fun isSafeServer(server: String): Boolean {
             val uri = Uri.parse(normalize(server))
             if (uri.scheme == "https") return true
-            val host = uri.host?.lowercase() ?: return false
+            val host = uri.host?.lowercase()?.removePrefix("[")?.removeSuffix("]") ?: return false
+            if (host == "localhost" || host.endsWith(".ts.net")) return true
+            // IPv6: only this phone, link-local and private (fc00::/7, which includes Tailscale).
+            if (':' in host) {
+                return host == "::1" || host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")
+            }
             // Single-word names (Tailscale MagicDNS like "mypc") can't be public internet hosts.
-            if (host == "localhost" || host.endsWith(".ts.net") || !host.contains('.')) return true
-            val parts = host.split(".").mapNotNull { it.toIntOrNull() }
+            if ('.' !in host) return SINGLE_WORD.matches(host)
+            // IPv4: every part must be a number, so "10.0.0.1.example.com" doesn't count.
+            val parts = host.split(".").map { it.toIntOrNull()?.takeIf { n -> n in 0..255 } ?: return false }
             if (parts.size != 4) return false
             val (a, b) = parts[0] to parts[1]
             return a == 10 || a == 127 ||
@@ -89,15 +96,19 @@ class Session(
                 (a == 100 && b in 64..127)
         }
 
+        private val SINGLE_WORD = Regex("[a-z0-9]([a-z0-9-]*[a-z0-9])?")
+
         private fun md5(text: String): String =
             MessageDigest.getInstance("MD5").digest(text.toByteArray())
                 .joinToString("") { "%02x".format(it) }
     }
 
+    /** Saves the session with the token encrypted. If the keystore isn't usable, nothing is saved. */
     internal fun saveTo(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        val sealed = if (isLocal) "" else Vault.encrypt("$token:$salt") ?: return
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear()
             .putString("server", server).putString("user", user)
-            .putString("token", token).putString("salt", salt).apply()
+            .putString("sealed", sealed).apply()
     }
 }
 
@@ -108,8 +119,19 @@ object SessionStore {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val server = p.getString("server", null) ?: return null
         val user = p.getString("user", null) ?: return null
-        val token = p.getString("token", null) ?: return null
-        val salt = p.getString("salt", null) ?: return null
+        if (server == Session.LOCAL) return Session.local()
+
+        // Older versions saved the token as plain text: encrypt it now and drop the plain copy.
+        val oldToken = p.getString("token", null)
+        val oldSalt = p.getString("salt", null)
+        if (oldToken != null && oldSalt != null) {
+            return Session(server, user, oldToken, oldSalt).also { it.saveTo(context) }
+        }
+
+        val opened = p.getString("sealed", null)?.let { Vault.decrypt(it) } ?: return null
+        val token = opened.substringBefore(':')
+        val salt = opened.substringAfter(':', "")
+        if (token.isEmpty() || salt.isEmpty()) return null
         return Session(server, user, token, salt)
     }
 
@@ -117,5 +139,6 @@ object SessionStore {
 
     fun clear(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+        Vault.forget()
     }
 }

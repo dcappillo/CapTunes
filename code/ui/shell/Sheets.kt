@@ -1,5 +1,9 @@
 package app.captunes.ui.shell
 
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.clickable
@@ -204,7 +208,12 @@ fun AccountSheet(
     onCellularQuality: () -> Unit = {},
     wifiQuality: String = "",
     onWifiQuality: () -> Unit = {},
+    lookups: Boolean = false,
+    onLookups: (Boolean) -> Unit = {},
+    onEraseHistory: () -> Unit = {},
 ) {
+    var confirmSignOut by remember { mutableStateOf(false) }
+    var confirmErase by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Surface1) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
             Text(if (local) "Music on this phone" else user, style = MaterialTheme.typography.titleLarge)
@@ -247,9 +256,66 @@ fun AccountSheet(
                 wifiQuality, onWifiQuality,
             )
         }
+        Row(
+            Modifier.fillMaxWidth().clickable { onLookups(!lookups) }.padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.Public, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(18.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Online lyrics and popularity", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Sends the title, artist, album and length of songs you play to LRCLIB (lyrics) and Deezer (popularity).",
+                    color = TextDim,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(
+                checked = lookups,
+                onCheckedChange = onLookups,
+                colors = SwitchDefaults.colors(checkedTrackColor = Coral),
+            )
+        }
         if (!local && storageMb > 0) SheetItem(Icons.Default.Delete, "Remove all downloads") { onRemoveDownloads(); onDismiss() }
-        SheetItem(Icons.Default.Person, if (local) "Switch library" else "Sign out", tint = Coral) { onSignOut(); onDismiss() }
+        SheetItem(Icons.Default.History, "Erase listening history") { confirmErase = true }
+        SheetItem(Icons.Default.Person, if (local) "Switch library" else "Sign out", tint = Coral) {
+            if (local) { onSignOut(); onDismiss() } else confirmSignOut = true
+        }
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (confirmSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmSignOut = false },
+            title = { Text("Sign out?") },
+            text = {
+                Text(
+                    "This removes your sign-in, downloaded songs, saved queue and cached cover art from this phone. " +
+                        "Your listening history stays unless you erase it separately.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmSignOut = false; onSignOut(); onDismiss() }) { Text("Sign out", color = Coral) }
+            },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
+        )
+    }
+    if (confirmErase) {
+        AlertDialog(
+            onDismissRequest = { confirmErase = false },
+            title = { Text("Erase listening history?") },
+            text = {
+                Text(
+                    "This deletes every play Cap Tunes has recorded on this phone. Your mixes and Wrapped start over, " +
+                        "and it can't be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmErase = false; onEraseHistory(); onDismiss() }) { Text("Erase", color = Coral) }
+            },
+            dismissButton = { TextButton(onClick = { confirmErase = false }) { Text("Cancel") } },
+        )
     }
 }
 

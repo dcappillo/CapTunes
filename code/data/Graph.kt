@@ -22,6 +22,7 @@ object Graph {
     private var player: PlayerController? = null
 
     fun init(context: Context) {
+        Lookups.load(context.applicationContext)
         if (session == null) {
             SessionStore.load(context.applicationContext)?.let { install(context, it) }
         }

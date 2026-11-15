@@ -139,6 +139,12 @@ class PlayLog private constructor(context: Context) :
         return out
     }
 
+    /** Erases your whole listening history and the saved popularity scores. Can't be undone. */
+    fun eraseAll() {
+        writableDatabase.delete("plays", null, null)
+        writableDatabase.delete("popularity", null, null)
+    }
+
     fun count(): Int = readableDatabase.rawQuery("SELECT COUNT(*) FROM plays", null).use {
         if (it.moveToFirst()) it.getInt(0) else 0
     }

@@ -69,8 +69,9 @@ sealed interface LyricsState {
 }
 
 @Composable
-fun rememberLyrics(track: Track, repo: Repository?): LyricsState {
-    val state by produceState<LyricsState>(LyricsState.Loading, track.id) {
+fun rememberLyrics(track: Track, repo: Repository?, lookupsOn: Boolean = false): LyricsState {
+    // Keyed on the lookup switch too, so turning it on fetches lyrics for the current song.
+    val state by produceState<LyricsState>(LyricsState.Loading, track.id, lookupsOn) {
         val lyrics = repo?.lyrics(track)
         value = if (lyrics == null || lyrics.lines.isEmpty()) LyricsState.Missing else LyricsState.Found(lyrics)
     }

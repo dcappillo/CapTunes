@@ -1,5 +1,11 @@
 package app.captunes.playback
 
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.media3.common.util.BitmapLoader
+import androidx.media3.datasource.DataSourceBitmapLoader
+import androidx.media3.session.CacheBitmapLoader
+import java.io.IOException
 import android.app.PendingIntent
 import android.content.Context
 import androidx.annotation.OptIn
@@ -67,6 +73,7 @@ class PlaybackService : MediaSessionService() {
 
         mediaSession = MediaSession.Builder(this, player)
             .setCallback(SessionCallback(applicationContext))
+            .setBitmapLoader(CacheBitmapLoader(CoverLoader(this)))
             .setSessionActivity(openApp)
             .build()
 
@@ -138,8 +145,49 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
+    /**
+     * Loads cover art for the notification and lock screen. Songs carry a stand-in address
+     * (see coverPlaceholder); the real one, which includes the sign-in token, is only built here.
+     */
+    @OptIn(UnstableApi::class)
+    private class CoverLoader(context: Context) : BitmapLoader {
+        private val inner = DataSourceBitmapLoader(context)
+
+        override fun supportsMimeType(mimeType: String): Boolean = inner.supportsMimeType(mimeType)
+
+        override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> = inner.decodeBitmap(data)
+
+        override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> {
+            val real = if (uri.scheme == COVER_SCHEME) {
+                Graph.source?.coverUri(uri.getQueryParameter("id"), 600)?.toUri()
+            } else {
+                uri
+            }
+            return if (real == null) Futures.immediateFailedFuture(IOException("No cover art"))
+            else inner.loadBitmap(real)
+        }
+    }
+
     /** Stream URLs are rebuilt here, so they never travel between app and service. */
     private class SessionCallback(private val context: Context) : MediaSession.Callback {
+        /**
+         * Only this app, the system (notification, lock screen, Bluetooth) and Android Auto
+         * may connect. Any other app is turned away, so it can't read what's playing,
+         * control playback or add songs to the queue.
+         */
+        @OptIn(UnstableApi::class)
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            val allowed = controller.packageName == context.packageName ||
+                controller.isTrusted ||
+                session.isMediaNotificationController(controller) ||
+                session.isAutomotiveController(controller) ||
+                session.isAutoCompanionController(controller)
+            return if (allowed) super.onConnect(session, controller) else MediaSession.ConnectionResult.reject()
+        }
+
         override fun onAddMediaItems(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
