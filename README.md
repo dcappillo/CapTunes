@@ -18,7 +18,7 @@ Built with Kotlin, Jetpack Compose and Media3.
 
 ## Install it
 
-Download the latest `.apk` from the [Releases page](https://github.com/dcappillo/CapTunes/releases/latest) onto your Android phone (8.0 or later), open it, and allow installs from your browser or file manager if Android asks. It's a debug build signed with a development key.
+There's no public download yet. To try it, build it yourself with the steps below.
 
 ## Build it
 
