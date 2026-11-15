@@ -21,7 +21,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinks and obfuscates the code. The release build is also not debuggable.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 
