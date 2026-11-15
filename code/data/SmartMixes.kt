@@ -34,6 +34,8 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
 
     companion object {
         const val MIN_PLAYS_FOR_DAILY = 40
+        /** Daily Mix ids are this plus the mix's seed, e.g. "smart:daily:g:rock". */
+        const val DAILY = "smart:daily:"
         private const val MIX_SIZE = 40
         private const val MORE_SIZE = 25
         /** "The 60s", "The 2000s". */
@@ -66,7 +68,7 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
             val headliners = tracks.groupingBy { it.artist }.eachCount().entries
                 .sortedByDescending { it.value }.take(3).joinToString(", ") { it.key }
             GeneratedMix(
-                Card("smart:daily${i + 1}", "Daily Mix ${i + 1}", "$label · $headliners", null, Kind.Mix),
+                Card("$DAILY$seed", "Daily Mix ${i + 1}", "$label · $headliners", null, Kind.Mix),
                 tracks,
                 seed,
             )
@@ -105,9 +107,11 @@ class SmartMixes(private val source: MusicSource, private val log: PlayLog) {
      * skipping anything already in the queue. Empty for mixes that are finite by design.
      */
     suspend fun more(id: String, p: TasteProfile, exclude: Set<String>): List<Track> {
-        val seed = MixStore.get(id)?.seed
+        // A Daily Mix's id carries its seed, so it always gets more of the same mix
+        // even after Home has rebuilt and renumbered the mixes.
+        val seed = id.takeIf { it.startsWith(DAILY) }?.removePrefix(DAILY)?.takeIf { it.length > 2 }
             ?: id.removePrefix("decade:").toIntOrNull()?.takeIf { id.startsWith("decade:") }?.let { "d:$it" }
-            ?: run { if (id.startsWith("smart:daily")) build(p); MixStore.get(id)?.seed }
+            ?: MixStore.get(id)?.seed
             ?: return emptyList()
         val key = seed.substring(2)
         return when (seed[0]) {

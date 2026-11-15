@@ -126,7 +126,9 @@ private fun CollectionContent(
     val playContext = PlayContext(contextKey, detail.typeLabel, detail.title)
     val isThis = player.context?.key == contextKey && player.current != null
     var shuffle by rememberSaveable(contextKey) { mutableStateOf(false) }
-    val editable = detail.kind == Kind.Playlist
+    // Playlists shared by someone else on the server can be played but not changed.
+    val editable = detail.kind == Kind.Playlist &&
+        (local || detail.owner == "You" || detail.owner.equals(session?.user, ignoreCase = true))
     var addingSongs by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -233,7 +235,9 @@ private fun CollectionContent(
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
-                    vm.deletePlaylist(detail.id, detail.title, onBack)
+                    // Leave the screen now; if the server is slow you may have moved on by the time it answers.
+                    onBack()
+                    vm.deletePlaylist(detail.id, detail.title)
                 }) { Text("Delete", color = Coral) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },

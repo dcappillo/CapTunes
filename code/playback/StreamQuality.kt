@@ -63,27 +63,42 @@ object StreamQuality {
             val uri = dataSpec.uri
             if (uri.scheme != "http" && uri.scheme != "https") return dataSpec // files on the phone
             if (uri.path?.endsWith("/rest/stream") != true) return dataSpec
-            if (uri.getQueryParameter("format") != null) return dataSpec // already being converted
             val id = uri.getQueryParameter("id") ?: return dataSpec
+            // Files the phone can't play (WMA, APE…) already ask the server for a 320 kbps MP3.
+            val alreadyConverting = uri.getQueryParameter("format") != null
 
             // Decide once per song, at its start. Later reads (seeking, reconnecting) must keep
             // the same choice, or the player would get bytes from two different files.
             val kbps = if (dataSpec.position == 0L) {
-                val now = if (onMobileData(app)) cellularKbps(app) else wifiKbps(app)
+                val now = when {
+                    Downloads.isDownloaded(app, id) -> ORIGINAL // play the downloaded file as it is
+                    onMobileData(app) -> cellularKbps(app)
+                    else -> wifiKbps(app)
+                }
                 if (chosen.size > 500) chosen.clear()
                 chosen[id] = now
                 now
             } else {
                 chosen[id] ?: ORIGINAL
             }
-            if (kbps == ORIGINAL) return dataSpec
+            if (kbps == ORIGINAL || (alreadyConverting && kbps >= 320)) return dataSpec
 
-            val converted = uri.buildUpon()
-                .appendQueryParameter("format", "mp3")
-                .appendQueryParameter("maxBitRate", "$kbps")
-                .appendQueryParameter("estimateContentLength", "true")
-                .build()
-            return dataSpec.withUri(converted)
+            val converted = if (alreadyConverting) {
+                // Keep everything, but lower the bitrate the server was asked for.
+                val b = uri.buildUpon().clearQuery()
+                for (name in uri.queryParameterNames) {
+                    b.appendQueryParameter(name, if (name == "maxBitRate") "$kbps" else uri.getQueryParameter(name))
+                }
+                b.build()
+            } else {
+                uri.buildUpon()
+                    .appendQueryParameter("format", "mp3")
+                    .appendQueryParameter("maxBitRate", "$kbps")
+                    .appendQueryParameter("estimateContentLength", "true")
+                    .build()
+            }
+            // Its own cache key, so it never mixes with downloaded bytes of the original.
+            return dataSpec.buildUpon().setUri(converted).setKey("$id:$kbps").build()
         }
     }
 }

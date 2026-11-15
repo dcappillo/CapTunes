@@ -104,7 +104,8 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
             all += page
             if (page.size < 500) break
         }
-        return all
+        // If the library changes between pages, an album can come back twice.
+        return all.distinctBy { it.id }
     }
 
     suspend fun collection(kind: Kind, id: String): CollectionDetail = when (kind) {
@@ -116,8 +117,14 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
             CollectionDetail(kind, id, p.name, "Playlist", p.owner ?: "You", null,
                 p.coverArt, null, p.tracks, false)
         }
-        Kind.Mix -> smartMix(id) ?: CollectionDetail(kind, id, mixTitle(id), "Mix", "Cap Tunes", null, null, null,
-            source.randomSongs(50, id.ifBlank { null }), false)
+        Kind.Mix -> smartMix(id)
+            ?: if (id.startsWith("smart:") || id.startsWith("decade:")) {
+                throw IllegalStateException("This mix couldn't be put together right now. Go back to Home and open it again.")
+            } else {
+                // Starter mixes (before your taste is learned) are random songs from a genre.
+                CollectionDetail(kind, id, mixTitle(id), "Mix", "Cap Tunes", null, null, null,
+                    source.randomSongs(50, id.ifBlank { null }), false)
+            }
         Kind.Genre -> CollectionDetail(kind, id, id, "Genre", "Your library", null, null, null,
             source.songsByGenre(id), false)
         Kind.Liked -> CollectionDetail(kind, id, "Liked Songs", "Playlist", "You", null, null, null,
@@ -152,9 +159,14 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
     }
 
     /** Every song on an artist's albums, for "Play artist". */
-    suspend fun artistTracks(albums: List<Card>): List<Track> = coroutineScope {
-        albums.take(15).map { c -> async { runCatching { source.album(c.id).tracks }.getOrDefault(emptyList()) } }
-            .awaitAll().flatten()
+    suspend fun artistTracks(artistId: String, albums: List<Card>): List<Track> = coroutineScope {
+        albums.take(15).map { c ->
+            async {
+                val album = runCatching { source.album(c.id) }.getOrNull() ?: return@async emptyList()
+                // Their own albums play in full; from compilations, only their songs.
+                if (album.artistId == artistId) album.tracks else album.tracks.filter { it.artistId == artistId }
+            }
+        }.awaitAll().flatten()
     }
 
     suspend fun likedSongs(): List<Track> = source.starredSongs()
@@ -186,12 +198,15 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
     suspend fun lyrics(track: Track): Lyrics? {
         lyricsCache[track.id]?.let { return it.takeIf { l -> l.lines.isNotEmpty() } }
         val list = runCatching { source.lyrics(track.id) }.getOrDefault(emptyList())
+        var lookupFailed = false
         val serverSynced = list.firstOrNull { it.synced && it.lines.isNotEmpty() }
         val serverPlain = list.firstOrNull { it.lines.isNotEmpty() }
         val result = when {
             serverSynced != null -> serverSynced
             else -> {
-                val online = if (Lookups.enabled) runCatching { LrcLib.find(track) }.getOrNull() else null
+                val lookup = if (Lookups.enabled) runCatching { LrcLib.find(track) } else null
+                if (lookup?.isFailure == true) lookupFailed = true
+                val online = lookup?.getOrNull()
                 when {
                     online?.synced == true -> online
                     serverPlain != null -> Lyrics(false, serverPlain.lines.map { LyricLine(null, it.text) })
@@ -199,7 +214,8 @@ class Repository(private val source: MusicSource, private val playLog: PlayLog) 
                 }
             }
         }
-        lyricsCache[track.id] = result ?: noLyrics
+        // A failed lookup (no signal) isn't remembered, so the song is tried again next time.
+        if (result != null || !lookupFailed) lyricsCache[track.id] = result ?: noLyrics
         return result
     }
 

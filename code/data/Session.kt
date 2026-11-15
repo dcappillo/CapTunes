@@ -66,8 +66,12 @@ class Session(
 
         fun normalize(raw: String): String {
             val trimmed = raw.trim().trimEnd('/')
-            return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed
-            else "http://$trimmed"
+            // Accept "Https://…" and the like: phone keyboards capitalize the first letter.
+            return when {
+                trimmed.startsWith("https://", ignoreCase = true) -> "https://" + trimmed.substring(8)
+                trimmed.startsWith("http://", ignoreCase = true) -> "http://" + trimmed.substring(7)
+                else -> "http://$trimmed"
+            }
         }
 
         /**

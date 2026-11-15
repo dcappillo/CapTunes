@@ -63,16 +63,20 @@ object Downloads {
 
     /** Data source for the player: downloaded bytes first, network otherwise. */
     fun playerDataSource(context: Context): DataSource.Factory =
-        CacheDataSource.Factory()
-            .setCache(cache(context))
-            .setUpstreamDataSourceFactory(
-                // On mobile data, songs are converted to a smaller MP3 by the server (see StreamQuality).
-                ResolvingDataSource.Factory(
-                    DefaultDataSource.Factory(context, DefaultHttpDataSource.Factory()),
-                    StreamQuality.resolver(context),
-                ),
-            )
-            .setCacheWriteDataSinkFactory(null)
+        // The quality resolver runs before the download cache is consulted. A converted stream
+        // gets its own cache key, so it is never stitched onto a partly downloaded original.
+        ResolvingDataSource.Factory(
+            CacheDataSource.Factory()
+                .setCache(cache(context))
+                .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context, DefaultHttpDataSource.Factory()))
+                .setCacheWriteDataSinkFactory(null),
+            StreamQuality.resolver(context),
+        )
+
+    /** True once a song is fully downloaded. Reads the download database, so it works in the service too. */
+    fun isDownloaded(context: Context, songId: String): Boolean = runCatching {
+        manager(context).downloadIndex.getDownload(songId)?.state == Download.STATE_COMPLETED
+    }.getOrDefault(false)
 
     @Synchronized
     fun manager(context: Context): DownloadManager = manager ?: DownloadManager(

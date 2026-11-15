@@ -155,8 +155,18 @@ class LocalSource(context: Context, private val playLog: PlayLog) : MusicSource 
     override suspend fun renamePlaylist(playlistId: String, name: String) =
         withContext(Dispatchers.IO) { store.renamePlaylist(playlistId, name) }
 
-    override suspend fun removeFromPlaylist(playlistId: String, index: Int) =
-        withContext(Dispatchers.IO) { store.removeFromPlaylist(playlistId, index) }
+    override suspend fun removeFromPlaylist(playlistId: String, index: Int) {
+        val lib = library()
+        withContext(Dispatchers.IO) {
+            val saved = store.playlists().firstOrNull { it.id == playlistId }
+                ?: throw IllegalArgumentException("Playlist not found")
+            // The screen hides songs that are no longer on the phone, so [index] counts only
+            // the visible ones. Translate it to the song's real position before deleting.
+            val visible = saved.songIds.indices.filter { lib.songById.containsKey(saved.songIds[it]) }
+            val position = visible.getOrNull(index) ?: throw IllegalArgumentException("Song not found")
+            store.removeFromPlaylist(playlistId, position)
+        }
+    }
 
     override suspend fun deletePlaylist(playlistId: String) =
         withContext(Dispatchers.IO) { store.deletePlaylist(playlistId) }

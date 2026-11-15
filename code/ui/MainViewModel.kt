@@ -400,13 +400,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun deletePlaylist(playlistId: String, title: String, onDeleted: () -> Unit) {
+    fun deletePlaylist(playlistId: String, title: String) {
         val r = repo ?: return
         viewModelScope.launch {
             runCatching { r.deletePlaylist(playlistId) }
                 .onSuccess {
                     _messages.tryEmit("Deleted \"$title\"")
-                    onDeleted()
                     playlistsChanged(r)
                 }
                 .onFailure { _messages.tryEmit("Couldn't delete the playlist") }

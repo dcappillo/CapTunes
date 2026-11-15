@@ -49,8 +49,9 @@ class PlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
-        // Keep up to 5 minutes of music loaded ahead (the default is under a minute),
-        // so a dead zone on the road doesn't interrupt the song.
+        // Keep up to 5 minutes or 32 MB of music loaded ahead, whichever comes first (the default is
+        // under a minute), so a dead zone on the road is less likely to interrupt the song. 32 MB is
+        // about 20 minutes of MP3 but only a minute or two of hi-res FLAC.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(120_000, 300_000, 2_500, 5_000)
             .setTargetBufferBytes(32 * 1024 * 1024)

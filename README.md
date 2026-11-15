@@ -13,7 +13,7 @@ Built with Kotlin, Jetpack Compose and Media3.
 - **Synced lyrics** from your server or, if you turn online lookups on, [LRCLIB](https://lrclib.net), shown line by line on the album art or full screen.
 - **Wrapped:** a yearly recap built from your on-device play history.
 - **Player:** background playback with lock-screen and notification controls, a queue with drag-to-reorder, resume after restart, and offline downloads (server mode).
-- **Streaming quality:** pick the quality separately for mobile data and Wi-Fi (Original, 320, 192 or 128 kbps). Below Original, the server converts songs to a smaller MP3 so large lossless files don't buffer. Downloads stay original.
+- **Streaming quality:** pick the quality separately for mobile data and Wi-Fi (Original, 320, 192 or 128 kbps). Below Original, the server converts songs to a smaller MP3 so large lossless files don't buffer. Downloads keep the original file, except formats Android can't play, which are saved as MP3.
 - **Format fallback:** in server mode, files Android can't decode (WMA, APE…) are converted to MP3 by the server on the fly.
 
 ## Install it
@@ -35,7 +35,7 @@ For safety, plain `http` is only accepted for private addresses (home network, [
 
 ## Privacy
 
-Cap Tunes has no accounts, analytics or ads. Your play history stays on your device, and you can erase it from Account.
+Cap Tunes has no accounts, analytics or ads. The detailed play history behind mixes and Wrapped stays on your device, and you can erase it from Account. In server mode the app also tells your own music server which songs you play, so its play counts stay current.
 
 Two online lookups are **off until you turn them on**: synced lyrics from [LRCLIB](https://lrclib.net) and world popularity from [Deezer](https://developers.deezer.com/api)'s public search. When they're on, the app sends those services the **title, artist, album and length** of songs you play. The app asks once after you sign in, and the switch is in Account.
 

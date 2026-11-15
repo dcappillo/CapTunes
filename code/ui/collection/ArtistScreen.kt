@@ -85,7 +85,7 @@ private fun ArtistContent(artist: ArtistDetail, vm: MainViewModel, onBack: () ->
         val repo = vm.repo ?: return
         loadingTracks = true
         scope.launch {
-            val tracks = runCatching { repo.artistTracks(artist.albums) }.getOrDefault(emptyList())
+            val tracks = runCatching { repo.artistTracks(artist.id, artist.albums) }.getOrDefault(emptyList())
             loadingTracks = false
             if (tracks.isEmpty()) vm.toast("No songs found for ${artist.name}")
             else vm.play(tracks, -1, PlayContext(key, "Artist", artist.name), shuffle)

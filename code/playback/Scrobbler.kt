@@ -91,6 +91,9 @@ class Scrobbler(context: Context, private val player: Player) : Player.Listener 
     private fun tick() {
         val current = item ?: return
         if (!player.isPlaying) return
+        // The clock starts when the song is first heard, not when it was loaded
+        // (a restored or paused queue can sit loaded for hours).
+        if (listenedMs == 0L) startedAt = System.currentTimeMillis()
         listenedMs += TICK_MS
         if (submitted) return
         val duration = player.duration
